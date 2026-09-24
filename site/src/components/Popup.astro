@@ -1,0 +1,33 @@
+---
+import { Image } from "astro:assets";
+import hatOrange from "../assets/hat-orange.png";
+---
+<!-- ── POPUP ── -->
+<div class="popup-overlay" id="popup" role="dialog" aria-modal="true">
+  <div class="popup">
+    <button class="popup-close" onclick="closePopup()" aria-label="Close">×</button>
+
+    <!-- Left — orange hat -->
+    <div class="popup-left">
+      <Image src={hatOrange} width={512} class="popup-hat" alt="HowdyNET" />
+      <div class="popup-hat-label">🟠 LAN · 🔵 WAN · All of it.</div>
+    </div>
+
+    <!-- Right — value statement -->
+    <div class="popup-right">
+      <div class="popup-eyebrow">The HowdyNET Promise</div>
+      <h2 class="popup-headline">One Partner.<br/><em>Every System.</em><br/>Zero Excuses.</h2>
+      <p class="popup-body">Most businesses manage 4–6 tech vendors who don't talk to each other. We replace all of them — internet, networking, security, AV, and IT support — under one accountable roof.</p>
+      <ul class="popup-promises">
+        <li><span class="dot-o">●</span> <span><strong>Orange Hat</strong> — your local network. Wi-Fi, cameras, AV, IT support.</span></li>
+        <li><span class="dot-b">●</span> <span><strong>Blue Hat</strong> — your internet. WISP-owned, net neutral, no data caps.</span></li>
+        <li><span class="dot-o">●</span> <span><strong>One call.</strong> We own the outcome. No finger-pointing.</span></li>
+      </ul>
+      <div class="popup-btns">
+        <a href="#contact" class="popup-btn-o" onclick="closePopup()">Let's Talk →</a>
+        <a href="/coverage" class="popup-btn-b">📍 Check My Coverage</a>
+      </div>
+      <div class="popup-dismiss" onclick="closePopup()">I'll explore on my own</div>
+    </div>
+  </div>
+</div>

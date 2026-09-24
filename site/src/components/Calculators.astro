@@ -1,0 +1,62 @@
+---
+---
+<!-- ── CALCULATORS ── -->
+<section class="calc-section" id="calculators">
+  <div class="calc-section-inner">
+    <div class="stag-b">Value Calculators</div>
+    <h2 class="sh-b">See what you're <em>actually spending.</em></h2>
+    <p class="sb-b" style="max-width:600px;margin-bottom:0">Honest math. See the real cost of vendor chaos and downtime before you decide anything.</p>
+    <div class="calc-grid">
+      <div class="calc-card">
+        <div><div class="calc-title">🟠 Vendor Chaos Calculator</div><div class="calc-sub">How much is managing multiple vendors actually costing you?</div></div>
+        <div class="calc-field">
+          <div class="calc-lbl">Number of tech vendors <span class="calc-lbl-val o" id="vc-count-val">5</span></div>
+          <input type="range" class="calc-slider os" min="1" max="15" value="5" id="vc-count" oninput="updateVendorCalc()">
+        </div>
+        <div class="calc-field">
+          <div class="calc-lbl">Hours/month managing them <span class="calc-lbl-val o" id="vc-hours-val">8 hrs</span></div>
+          <input type="range" class="calc-slider os" min="1" max="40" value="8" id="vc-hours" oninput="updateVendorCalc()">
+        </div>
+        <div class="calc-field">
+          <div class="calc-lbl">Your effective hourly rate <span class="calc-lbl-val o" id="vc-rate-val">$75/hr</span></div>
+          <input type="range" class="calc-slider os" min="25" max="300" step="25" value="75" id="vc-rate" oninput="updateVendorCalc()">
+        </div>
+        <div class="calc-result">
+          <div class="calc-num o" id="vc-result">$7,200</div>
+          <div class="calc-num-lbl">hidden annual cost of vendor management</div>
+          <div class="calc-insight" id="vc-insight">That's 9 full work days a year — 5 vendors, 5 invoices, 5 people to blame when something breaks.</div>
+          <a href="#contact" class="calc-cta">One partner eliminates all of it →</a>
+        </div>
+      </div>
+      <div class="calc-card">
+        <div><div class="calc-title">🔵 Downtime Cost Calculator</div><div class="calc-sub">Every hour your network is down, your business is bleeding.</div></div>
+        <div class="calc-field">
+          <div class="calc-lbl">Industry</div>
+          <select class="calc-select" id="dt-industry" onchange="updateDowntimeCalc()">
+            <option value="500">Retail / Restaurant</option>
+            <option value="1000">Professional Services</option>
+            <option value="2000" selected>Technology / SaaS</option>
+            <option value="1500">Healthcare / Medical</option>
+            <option value="800">Hospitality / Hotel</option>
+            <option value="3000">Finance / Banking</option>
+            <option value="600">Manufacturing</option>
+          </select>
+        </div>
+        <div class="calc-field">
+          <div class="calc-lbl">Employees affected <span class="calc-lbl-val b" id="dt-emp-val">25</span></div>
+          <input type="range" class="calc-slider bs" min="1" max="200" value="25" id="dt-emp" oninput="updateDowntimeCalc()">
+        </div>
+        <div class="calc-field">
+          <div class="calc-lbl">Avg outage hours per year <span class="calc-lbl-val b" id="dt-hrs-val">4 hrs</span></div>
+          <input type="range" class="calc-slider bs" min="1" max="48" value="4" id="dt-hrs" oninput="updateDowntimeCalc()">
+        </div>
+        <div class="calc-result">
+          <div class="calc-num b" id="dt-result">$8,000</div>
+          <div class="calc-num-lbl">estimated annual downtime cost</div>
+          <div class="calc-insight" id="dt-insight">At $2,000/hr, 4 hours of downtime costs more than most IT budgets. Proactive monitoring changes that equation.</div>
+          <a href="#contact" class="calc-cta">24/7 monitoring eliminates the risk →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,38 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+  bodyClass?: string;
+}
+const { title, description, bodyClass } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400;1,700;1,800;1,900&display=swap" rel="stylesheet">
+<!-- Open Graph / Social Sharing -->
+<meta property="og:type" content="website"/>
+<meta property="og:url" content={canonical.href}/>
+<link rel="canonical" href={canonical.href}/>
+<meta property="og:title" content="HowdyNET — One Hat. All Your Business Tech."/>
+<meta property="og:description" content="Internet, networks, security, AV, IT — all under one roof. Licensed WISP. No markups. Real humans answer the phone. Austin, TX."/>
+<meta property="og:site_name" content="HowdyNET"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="HowdyNET — One Hat. All Your Business Tech."/>
+<meta name="twitter:description" content="Internet, networks, security, AV, IT — all under one roof. Licensed WISP. No markups. Real humans answer."/>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+<slot name="head" />
+<script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body class={bodyClass}>
+<slot />
+</body>
+</html>

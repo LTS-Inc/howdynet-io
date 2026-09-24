@@ -1,0 +1,1461 @@
+---
+---
+<script is:inline>
+/* ── FORM DELIVERY (Cloudflare Worker + Turnstile) ── */
+function postForm(form) {
+  return fetch('/api/form', { method: 'POST', headers: { 'Accept': 'application/json' }, body: new FormData(form) })
+    .then(function(r) { return r.json().catch(function() { return {}; }).then(function(j) { return { ok: r.ok && j.ok !== false, error: j.error }; }); })
+    .catch(function() { return { ok: false, error: 'Network error — please try again.' }; })
+    .then(function(res) {
+      if (!res.ok) {
+        formError(form, res.error || 'Something went wrong — please try again.');
+        if (window.turnstile) { try { window.turnstile.reset(); } catch (e) {} }
+      }
+      return res.ok;
+    });
+}
+function formError(form, msg) {
+  var el = form.querySelector('.form-error');
+  if (!el) { el = document.createElement('div'); el.className = 'form-error'; el.setAttribute('role', 'alert'); form.appendChild(el); }
+  el.textContent = msg;
+}
+/* Contact form is a plain POST; the Worker answers 303 back here with ?sent=contact */
+document.addEventListener('DOMContentLoaded', function() {
+  if (/[?&]sent=contact\b/.test(location.search)) {
+    var f = document.querySelector('form[name="contact"]');
+    if (f) {
+      f.style.display = 'none';
+      var ok = document.createElement('div'); ok.className = 'form-title'; ok.style.marginTop = '12px';
+      ok.textContent = 'Got it — we reply same business day. 🤠';
+      f.parentNode.insertBefore(ok, f);
+    }
+    try { history.replaceState(null, '', location.pathname + '#contact'); } catch (e) {}
+  }
+});
+</script>
+<script is:inline>
+
+/* ── DEVICE & GEO DATA ── */
+var deviceData = (function() {
+  var ua = navigator.userAgent;
+  var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  return {
+    device: /Mobi|Android/i.test(ua) ? 'Mobile' : /Tablet|iPad/i.test(ua) ? 'Tablet' : 'Desktop',
+    osBr: (/Windows/.test(ua) ? 'Windows' : /Mac OS X/.test(ua) ? 'macOS' : /Android/.test(ua) ? 'Android' : /iOS|iPhone|iPad/.test(ua) ? 'iOS' : 'Linux') +
+          ' / ' + (/Chrome/.test(ua) && !/Edg/.test(ua) ? 'Chrome' : /Safari/.test(ua) && !/Chrome/.test(ua) ? 'Safari' : /Firefox/.test(ua) ? 'Firefox' : /Edg/.test(ua) ? 'Edge' : 'Other'),
+    screen: window.screen.width + 'x' + window.screen.height,
+    conn: conn ? (conn.effectiveType || conn.type || 'unknown') : 'unknown',
+    ts: new Date().toISOString()
+  };
+})();
+var geoData = { loc: 'Detecting...', isp: 'Detecting...' };
+fetch('https://ipapi.co/json/').then(function(r) { return r.json(); }).then(function(d) {
+  geoData.loc = (d.city || '') + ', ' + (d.region || '') + ', ' + (d.country_name || '');
+  geoData.isp = d.org || d.isp || 'Unknown';
+}).catch(function() { geoData.loc = 'Unavailable'; geoData.isp = 'Unavailable'; });
+/* ── CALCULATORS ── */
+function fmtMoney(n) {
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + Math.round(n / 1000) + 'K';
+  return '$' + n.toLocaleString();
+}
+
+function updateVendorCalc() {
+  var v = parseInt(document.getElementById('vc-count').value);
+  var h = parseInt(document.getElementById('vc-hours').value);
+  var r = parseInt(document.getElementById('vc-rate').value);
+  document.getElementById('vc-count-val').textContent = v;
+  document.getElementById('vc-hours-val').textContent = h + ' hrs base';
+  document.getElementById('vc-rate-val').textContent = '$' + r + '/hr';
+  // Each vendor adds ~1.5hrs/month coordination overhead (calls, invoices, escalations)
+  var vendorOverhead = v * 1.5;
+  var totalHours = h + vendorOverhead;
+  var annual = Math.round(totalHours * r * 12);
+  var days = Math.round(annual / (r * 8));
+  document.getElementById('vc-result').textContent = fmtMoney(annual);
+  var overheadCost = Math.round(vendorOverhead * r * 12);
+  var msg;
+  if (v <= 2) {
+    msg = days + ' full work days lost annually — even with just ' + v + ' vendor' + (v===1?'':'s') + ', coordination costs add up. Each vendor averages 1.5hrs/month in calls, invoices, and follow-ups.';
+  } else if (v <= 5) {
+    msg = days + ' full work days lost annually — ' + v + ' vendors means ' + v + ' invoices, ' + v + ' support queues, and ' + fmtMoney(overheadCost) + ' in pure coordination overhead beyond your base hours.';
+  } else if (v <= 10) {
+    msg = days + ' full work days — managing ' + v + ' vendors is practically a part-time job. ' + fmtMoney(overheadCost) + ' in annual overhead just keeping them coordinated.';
+  } else {
+    msg = days + ' full work days — ' + v + ' vendors is vendor chaos. ' + fmtMoney(overheadCost) + ' in coordination overhead annually. This is unsustainable.';
+  }
+  document.getElementById('vc-insight').textContent = msg;
+}
+
+function updateDowntimeCalc() {
+  var base = parseInt(document.getElementById('dt-industry').value);
+  var emp = parseInt(document.getElementById('dt-emp').value);
+  var hrs = parseInt(document.getElementById('dt-hrs').value);
+  document.getElementById('dt-emp-val').textContent = emp;
+  document.getElementById('dt-hrs-val').textContent = hrs + ' hrs';
+  var perHour = base + (emp * 35);
+  var annual = perHour * hrs;
+  document.getElementById('dt-result').textContent = fmtMoney(annual);
+  document.getElementById('dt-per-hour').textContent = fmtMoney(perHour) + '/hr';
+  var msg = annual < 5000
+    ? 'Proactive monitoring typically prevents issues before they become outages.'
+    : annual < 20000
+    ? '24/7 monitoring pays for itself with just one prevented outage.'
+    : 'At this scale, downtime without proactive monitoring is a certainty.';
+  document.getElementById('dt-insight').textContent = 'At ' + fmtMoney(perHour) + '/hr, ' + hrs + ' outage hours = ' + fmtMoney(annual) + ' annually. ' + msg;
+}
+
+/* ── NETWORK QUALITY TESTER ── */
+var bloatRunning = false;
+var currentQS = null;
+
+function bSetStep(s) {
+  var all = ['idle', 'baseline', 'load', 'grade', 'done'];
+  all.forEach(function(id, i) {
+    var el = document.getElementById('bstep-' + id);
+    if (!el) return;
+    el.className = 'bstep';
+    var ci = all.indexOf(s);
+    if (i === ci) el.classList.add('active');
+    else if (i < ci) el.classList.add('done');
+  });
+}
+
+function bPing(url, cb) {
+  var t = performance.now();
+  var img = new Image();
+  img.onload = img.onerror = function() { cb(performance.now() - t); };
+  img.src = url + '?_=' + Date.now() + Math.floor(Math.random() * 9999);
+}
+
+function bPings(url, n, delay, cb) {
+  var results = [], i = 0;
+  function next() {
+    if (i >= n) { cb(results); return; }
+    i++;
+    bPing(url, function(ms) { results.push(ms); setTimeout(next, delay); });
+  }
+  next();
+}
+
+function bMedian(a) {
+  var s = a.slice().sort(function(x, y) { return x - y; });
+  var m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+function bLoad(ms, cb) {
+  var end = Date.now() + ms;
+  var urls = [
+    'https://www.cloudflare.com/favicon.ico',
+    'https://www.google.com/favicon.ico',
+    'https://www.apple.com/favicon.ico'
+  ];
+  function fire() {
+    if (Date.now() >= end) { cb(); return; }
+    for (var i = 0; i < 6; i++) {
+      var img = new Image();
+      img.src = urls[i % 3] + '?b=' + Date.now() + Math.floor(Math.random() * 9999);
+    }
+    setTimeout(fire, 80);
+  }
+  fire();
+  setTimeout(cb, ms);
+}
+
+function qsColor(n) {
+  if (n >= 85) return '#22c55e';
+  if (n >= 70) return '#4ade80';
+  if (n >= 55) return '#a3e635';
+  if (n >= 40) return '#facc15';
+  if (n >= 25) return '#f97316';
+  return '#ef4444';
+}
+
+function calcQS(bl, ld, jit) {
+  var inc = Math.max(0, ld - bl);
+  var latS = Math.max(0, Math.min(30, Math.round(30 * (1 - Math.min(1, (bl - 10) / 190)))));
+  var jitS = Math.max(0, Math.min(20, Math.round(20 * (1 - Math.min(1, jit / 50)))));
+  var bloatS = inc < 5 ? 35 : inc < 15 ? 30 : inc < 30 ? 22 : inc < 60 ? 14 : inc < 120 ? 6 : 0;
+  var ratio = bl > 0 ? jit / bl : 1;
+  var conS = Math.max(0, Math.min(15, Math.round(15 * (1 - Math.min(1, ratio * 3)))));
+  return {
+    total: latS + jitS + bloatS + conS,
+    latS: latS, jitS: jitS, bloatS: bloatS, conS: conS,
+    con: Math.round(Math.max(0, 100 - (ratio * 100)))
+  };
+}
+
+function setQSC(id, val, pts, maxPts, pct, desc, color) {
+  var g = function(x) { return document.getElementById(x); };
+  if (g('qsv-' + id)) { g('qsv-' + id).textContent = val; g('qsv-' + id).style.color = color; }
+  if (g('qsp-' + id)) { g('qsp-' + id).textContent = pts + ' /' + maxPts; g('qsp-' + id).style.color = color; }
+  if (g('qsb-' + id)) { g('qsb-' + id).style.width = pct + '%'; g('qsb-' + id).style.background = color; }
+  if (g('qsd-' + id)) { g('qsd-' + id).textContent = desc; }
+}
+
+function updateEffRate() {
+  var spd = parseFloat(document.getElementById('isp-speed').value);
+  var el = document.getElementById('b-eff-num');
+  var desc = document.getElementById('b-eff-desc');
+  if (!el) return;
+  if (!spd || spd <= 0) {
+    el.textContent = '—';
+    el.style.color = 'rgba(255,255,255,0.15)';
+    if (desc) desc.textContent = '';
+    return;
+  }
+  if (currentQS !== null) {
+    var eff = Math.round(spd * (currentQS / 100));
+    var c = currentQS >= 70 ? '#22c55e' : currentQS >= 45 ? '#facc15' : '#ef4444';
+    el.textContent = eff;
+    el.style.color = c;
+    if (desc) {
+      var pct = Math.round(currentQS);
+      var msg = currentQS < 50
+        ? 'Less than half of what you are paying for.'
+        : currentQS < 75
+        ? 'Quality issues are eating your bandwidth.'
+        : 'Good efficiency — your infrastructure is working.';
+      desc.textContent = 'Paying for ' + spd + ' Mbps — real-world quality delivers ' + eff + ' Mbps. ' + msg;
+    }
+  } else {
+    el.textContent = '?';
+    el.style.color = 'rgba(255,255,255,0.3)';
+    if (desc) desc.textContent = 'Run the test first to calculate your effective rate.';
+  }
+}
+
+
+/* ── PATH ANALYSIS (traceroute-equivalent) ──
+   True traceroute requires ICMP — blocked by browsers.
+   We measure RTT to multiple endpoints at different
+   network distances to fingerprint path quality.        */
+var traceTargets = [
+  { hop: 'Cloudflare DNS (1.1.1.1)',  url: 'https://1.1.1.1/favicon.ico' },
+  { hop: 'Google DNS (8.8.8.8)',      url: 'https://dns.google/favicon.ico' },
+  { hop: 'Cloudflare CDN Edge',       url: 'https://www.cloudflare.com/favicon.ico' },
+  { hop: 'AWS us-east-1',             url: 'https://aws.amazon.com/favicon.ico' },
+];
+
+function runPathAnalysis(cb) {
+  var results = [];
+  var done = 0;
+  traceTargets.forEach(function(target, idx) {
+    var pings = [];
+    var i = 0;
+    function ping() {
+      if (i >= 4) {
+        var s = pings.slice().sort(function(a,b){return a-b;});
+        results[idx] = {
+          hop:    target.hop,
+          med:    Math.round(s[Math.floor(s.length/2)]),
+          min:    Math.round(s[0]),
+          max:    Math.round(s[s.length-1]),
+          jitter: Math.round(s[s.length-1] - s[0])
+        };
+        done++;
+        if (done === traceTargets.length) cb(results);
+        return;
+      }
+      i++;
+      var t = performance.now();
+      var img = new Image();
+      img.onload = img.onerror = function() {
+        pings.push(performance.now() - t);
+        setTimeout(ping, 80);
+      };
+      img.src = target.url + '?_=' + Date.now() + (Math.random()*9999|0);
+    }
+    setTimeout(ping, idx * 50); // stagger starts
+  });
+}
+
+function showSendPanel(qs, bl, jit, inc) {
+  currentQS = qs;
+  updateEffRate();
+  var spd = document.getElementById('isp-speed').value || '';
+  var eff = spd ? Math.round(parseFloat(spd) * (qs / 100)) : '';
+  function sv(id, v) { var e = document.getElementById(id); if (e) e.value = v; }
+  sv('rf-score',  qs);
+  sv('rf-lat',    Math.round(bl) + ' ms');
+  sv('rf-jit',    jit + ' ms');
+  sv('rf-bloat',  '+' + Math.round(inc) + ' ms');
+  sv('rf-ispeed', spd ? spd + ' Mbps' : 'Not provided');
+  sv('rf-eff',    eff ? eff + ' Mbps' : 'N/A');
+  sv('rf-device', deviceData.device);
+  sv('rf-osbr',   deviceData.osBr);
+  sv('rf-conn',   deviceData.conn);
+  sv('rf-screen', deviceData.screen);
+  sv('rf-loc',    geoData.loc);
+  sv('rf-isp',    geoData.isp);
+  sv('rf-ip',     geoData.ip || 'N/A');
+  sv('rf-time',   deviceData.ts);
+  sv('rf-trace',  'Measuring...');
+  var panel = document.getElementById('b-send');
+  if (panel) {
+    panel.classList.add('show');
+    setTimeout(function() { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+  }
+  // Run path analysis in background
+  runPathAnalysis(function(results) {
+    var summary = results.map(function(r) {
+      return r.hop + ': ' + r.med + 'ms (jitter ' + r.jitter + 'ms)';
+    }).join(' | ');
+    sv('rf-trace', summary);
+    var el = document.getElementById('b-trace-display');
+    if (el) {
+      el.innerHTML = results.map(function(r) {
+        var c = r.med < 20 ? '#22c55e' : r.med < 60 ? '#facc15' : '#ef4444';
+        return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);">' +
+          '<span style="font-size:0.68rem;color:rgba(255,255,255,0.45);">' + r.hop + '</span>' +
+          '<span style="font-size:0.72rem;font-weight:800;color:' + c + ';">' + r.med + 'ms</span>' +
+          '</div>';
+      }).join('');
+    }
+  });
+}
+
+function submitBloatForm(e) {
+  e.preventDefault();
+  var btn = e.target.querySelector('button[type="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  postForm(e.target).then(function(ok) {
+    if (ok) { showSendOK(); return; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Send My Results for Free Evaluation →'; }
+  });
+}
+
+function showSendOK() {
+  var f = document.getElementById('b-send').querySelector('form');
+  if (f) f.style.display = 'none';
+  var ok = document.getElementById('b-send-ok');
+  if (ok) ok.style.display = 'block';
+}
+
+function runBloatTest() {
+  if (bloatRunning) return;
+  bloatRunning = true;
+
+  var btn = document.getElementById('b-run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Testing...';
+
+  // Reset UI
+  document.getElementById('b-explain').className = 'b-explain';
+  document.getElementById('b-contact-btn').className = 'b-contact';
+  document.getElementById('b-benchmark').style.display = 'none';
+  document.getElementById('b-send').classList.remove('show');
+
+  ['b-baseline', 'b-loaded', 'b-jitter'].forEach(function(id) {
+    var e = document.getElementById(id);
+    if (e) { e.textContent = '—'; e.style.color = 'rgba(255,255,255,0.15)'; }
+  });
+
+  var scoreEl = document.getElementById('qs-score');
+  if (scoreEl) { scoreEl.textContent = '—'; scoreEl.style.color = 'rgba(255,255,255,0.15)'; }
+
+  var verdictEl = document.getElementById('qs-verdict');
+  if (verdictEl) { verdictEl.textContent = 'Testing...'; verdictEl.style.color = 'rgba(255,255,255,0.25)'; }
+
+  var ring = document.getElementById('qs-ring');
+  if (ring) { ring.style.strokeDashoffset = '415'; ring.style.stroke = 'rgba(255,255,255,0.08)'; }
+
+  ['lat', 'jit', 'bloat', 'con'].forEach(function(id) {
+    setQSC(id, '—', '—', id === 'lat' ? 30 : id === 'jit' ? 20 : id === 'bloat' ? 35 : 15, 0, '', 'rgba(255,255,255,0.15)');
+  });
+
+  document.getElementById('b-status').textContent = 'Measuring baseline latency...';
+  bSetStep('baseline');
+
+  var url = 'https://www.cloudflare.com/favicon.ico';
+
+  bPings(url, 10, 130, function(baseResults) {
+    var bl = bMedian(baseResults);
+    var sorted = baseResults.slice().sort(function(a, b) { return a - b; });
+    var jit = Math.round((sorted[sorted.length - 1] - sorted[0]) * 0.55);
+
+    var bEl = document.getElementById('b-baseline');
+    if (bEl) { bEl.textContent = Math.round(bl); bEl.style.color = 'var(--sky)'; }
+
+    document.getElementById('b-status').textContent = 'Baseline: ' + Math.round(bl) + 'ms — simulating load...';
+    bSetStep('load');
+
+    bLoad(4000, function() {});
+
+    setTimeout(function() {
+      bPings(url, 10, 160, function(loadResults) {
+        var ld = bMedian(loadResults);
+        var inc = Math.max(0, ld - bl);
+
+        var lEl = document.getElementById('b-loaded');
+        if (lEl) { lEl.textContent = Math.round(ld); lEl.style.color = inc > 60 ? '#ef4444' : inc > 20 ? '#facc15' : 'var(--sky)'; }
+
+        var jEl = document.getElementById('b-jitter');
+        if (jEl) { jEl.textContent = jit + ' ms'; jEl.style.color = jit > 20 ? '#f97316' : jit > 8 ? '#facc15' : '#22c55e'; }
+
+        bSetStep('grade');
+        document.getElementById('b-status').textContent = 'Calculating quality score...';
+
+        setTimeout(function() {
+          var qs = calcQS(bl, ld, jit);
+          var qsC = qsColor(qs.total);
+          bSetStep('done');
+
+          var ring = document.getElementById('qs-ring');
+          if (ring) {
+            ring.style.strokeDashoffset = 415 - (qs.total / 100) * 415;
+            ring.style.stroke = qsC;
+          }
+
+          if (scoreEl) { scoreEl.textContent = qs.total; scoreEl.style.color = qsC; }
+
+          var verdicts = [
+            [85, 'Excellent — managed network quality 🤠'],
+            [70, 'Good — minor optimizations possible'],
+            [55, 'Fair — quality issues under load'],
+            [40, 'Poor — your team feels this daily'],
+            [0,  'Critical — needs immediate attention']
+          ];
+          var vt = '';
+          for (var vi = 0; vi < verdicts.length; vi++) {
+            if (qs.total >= verdicts[vi][0]) { vt = verdicts[vi][1]; break; }
+          }
+          if (verdictEl) { verdictEl.textContent = vt; verdictEl.style.color = qsC; }
+
+          var latC   = qs.latS  >= 24 ? '#22c55e' : qs.latS  >= 15 ? '#facc15' : '#ef4444';
+          var jitC   = qs.jitS  >= 16 ? '#22c55e' : qs.jitS  >= 10 ? '#facc15' : '#ef4444';
+          var bloatC = qs.bloatS >= 28 ? '#22c55e' : qs.bloatS >= 14 ? '#facc15' : '#ef4444';
+          var conC   = qs.conS  >= 12 ? '#22c55e' : qs.conS  >= 8  ? '#facc15' : '#ef4444';
+
+          setQSC('lat',   Math.round(bl) + ' ms', qs.latS,   30, Math.round((qs.latS / 30) * 100),
+            bl < 20 ? 'Excellent — ideal for real-time apps' : bl < 50 ? 'Good latency for business use' : 'Higher than ideal — check your ISP', latC);
+          setQSC('jit',   jit + ' ms',             qs.jitS,   20, Math.round((qs.jitS / 20) * 100),
+            jit < 5 ? 'Rock solid — calls will be clear' : jit < 15 ? 'Acceptable variance' : 'High jitter — video calls will stutter', jitC);
+          setQSC('bloat', '+' + Math.round(inc) + ' ms', qs.bloatS, 35, Math.round((qs.bloatS / 35) * 100),
+            inc < 15 ? 'No bufferbloat — QoS working correctly' : inc < 60 ? 'Moderate — noticeable under heavy use' : 'Severe bufferbloat — hurting your team daily', bloatC);
+          setQSC('con',   qs.con + '%',             qs.conS,   15, Math.round((qs.conS / 15) * 100),
+            qs.con > 80 ? 'Highly consistent connection' : qs.con > 60 ? 'Mostly stable with some variance' : 'Unstable — performance varies significantly', conC);
+
+          var bm = document.getElementById('b-benchmark');
+          if (bm) bm.style.display = 'block';
+          var ys = document.getElementById('b-your-score');
+          if (ys) { ys.textContent = qs.total; ys.style.color = qsC; }
+
+          var explains = {
+            A: 'Minimal bufferbloat. Latency stayed stable under load — video calls and real-time apps will perform reliably.',
+            B: 'Mild bufferbloat detected. Good most of the time, but heavy usage causes occasional quality dips. Fixable with proper QoS.',
+            C: 'Moderate bufferbloat. Latency jumps enough to cause choppy calls and sluggish apps under load.',
+            D: 'Significant bufferbloat. Your team is experiencing degraded performance daily — this is likely the cause.',
+            F: 'Severe bufferbloat. Video calls fail, VoIP breaks. Requires intervention — but it is fixable.'
+          };
+          var grade = inc < 5 ? 'A' : inc < 30 ? 'B' : inc < 60 ? 'C' : inc < 120 ? 'D' : 'F';
+          var exEl = document.getElementById('b-explain');
+          if (exEl) {
+            exEl.textContent = explains[grade] + ' (Baseline: ' + Math.round(bl) + 'ms → Loaded: ' + Math.round(ld) + 'ms, +' + Math.round(inc) + 'ms added)';
+            exEl.className = 'b-explain show';
+          }
+
+          if (qs.total < 65) {
+            var ct = document.getElementById('b-contact-btn');
+            if (ct) ct.className = 'b-contact show';
+          }
+
+          document.getElementById('b-status').textContent = 'Quality Score: ' + qs.total + '/100';
+          btn.disabled = false;
+          btn.textContent = '🔄 Run Again';
+          bloatRunning = false;
+
+          showSendPanel(qs.total, bl, jit, inc);
+        }, 500);
+      });
+    }, 600);
+  });
+}
+
+/* ── POPUP ── */
+(function() {
+  if (sessionStorage.getItem('howdyPopupShown')) return;
+  var triggered = false;
+  function show() {
+    if (triggered) return;
+    triggered = true;
+    sessionStorage.setItem('howdyPopupShown', '1');
+    var el = document.getElementById('howdy-popup');
+    el.style.display = 'flex';
+    requestAnimationFrame(function() { requestAnimationFrame(function() { el.classList.add('show'); }); });
+  }
+  window.addEventListener('scroll', function onScroll() {
+    var pct = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+    if (pct >= 0.5) { show(); window.removeEventListener('scroll', onScroll); }
+  }, { passive: true });
+})();
+
+function closeHowdyPopup() {
+  var el = document.getElementById('howdy-popup');
+  el.classList.remove('show');
+  setTimeout(function() { el.style.display = 'none'; }, 350);
+}
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeHowdyPopup(); });
+document.addEventListener('DOMContentLoaded', function() {
+  var p = document.getElementById('howdy-popup');
+  if (p) p.addEventListener('click', function(e) { if (e.target === this) closeHowdyPopup(); });
+});
+
+/* ── EASTER EGG ── */
+(function() {
+  var clicks = 0, timer = null, container = null;
+  // Attach directly — script is at end of body so DOM is ready
+  var logo = document.querySelector('.nav-logo');
+  if (logo) {
+    logo.addEventListener('click', function(e) {
+      e.preventDefault();
+      clicks++;
+      clearTimeout(timer);
+      timer = setTimeout(function() { clicks = 0; }, 2000);
+      if (clicks >= 5) { clicks = 0; rainHats(); }
+    });
+  }
+  // Fallback: also try after DOMContentLoaded in case order differs
+  if (!logo) {
+    window.addEventListener('load', function() {
+      var l = document.querySelector('.nav-logo');
+      if (!l) return;
+      l.addEventListener('click', function(e) {
+        e.preventDefault();
+        clicks++;
+        clearTimeout(timer);
+        timer = setTimeout(function() { clicks = 0; }, 2000);
+        if (clicks >= 5) { clicks = 0; rainHats(); }
+      });
+    });
+  }
+  function rainHats() {
+    if (!container) { container = document.createElement('div'); container.className = 'hat-rain-container'; document.body.appendChild(container); }
+    container.innerHTML = '';
+    for (var i = 0; i < 18; i++) {
+      (function(i) {
+        setTimeout(function() {
+          var el = document.createElement('div');
+          el.className = 'falling-hat';
+          el.textContent = Math.random() > 0.15 ? '🤠' : '🎩';
+          el.style.left = (Math.random() * 100) + 'vw';
+          el.style.fontSize = (1.5 + Math.random() * 2.5) + 'rem';
+          var dur = (2 + Math.random() * 2).toFixed(1) + 's';
+          el.style.animationDuration = dur;
+          container.appendChild(el);
+          setTimeout(function() { el.remove(); }, parseFloat(dur) * 1000 + 100);
+        }, i * 80);
+      })(i);
+    }
+    var toast = document.createElement('div');
+    toast.className = 'logo-toast';
+    toast.textContent = '🤠 Well howdy! You found the secret!';
+    document.body.appendChild(toast);
+    requestAnimationFrame(function() { requestAnimationFrame(function() { toast.classList.add('show'); }); });
+    setTimeout(function() { toast.classList.remove('show'); setTimeout(function() { toast.remove(); }, 400); }, 3000);
+  }
+  window.rainHats = rainHats;
+})();
+
+/* ── VENDOR WRANGLER GAME ── */
+var gameState = null;
+function openGame() { document.getElementById('game-overlay').classList.add('open'); startGame(); }
+function closeGame() { document.getElementById('game-overlay').classList.remove('open'); if (gameState) { cancelAnimationFrame(gameState.raf); gameState = null; } }
+function startGame() {
+  var canvas = document.getElementById('wrangler-canvas');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+
+  /* ── STATE ── */
+  var hatX = W / 2;
+  var score = 0, timeLeft = 30, combo = 0, comboTimer = 0, maxCombo = 0;
+  var caught = 0, blasted = 0, missed = 0, wrongCatch = 0;
+  var items = [], lassos = [], particles = [], explosions = [];
+  var lastSpawn = 0;
+  var tickInterval = null;
+
+  /* ── ITEM DEFINITIONS ── */
+  var GOOD = [ /* catch these in the hat */
+    {label:'Invoice #847', emoji:'📄', color:'#E86A1A', pts:10},
+    {label:'ISP Contract', emoji:'📋', color:'#C85500', pts:15},
+    {label:'IT Ticket',    emoji:'🎫', color:'#8B2200', pts:10},
+    {label:'AV Quote',     emoji:'🖥️',  color:'#D97706', pts:12},
+    {label:'Cable Co.',    emoji:'📡', color:'#92400E', pts:10},
+    {label:'5 Vendors',   emoji:'👥', color:'#B45309', pts:20},
+    {label:'MSP Invoice',  emoji:'💼', color:'#78350F', pts:15},
+  ];
+  var BAD = [ /* shoot these with lasso */
+    {label:'Hidden Fee',   emoji:'💸', color:'#DC2626', pts:15},
+    {label:'40% Markup',   emoji:'📈', color:'#B91C1C', pts:20},
+    {label:'Data Cap',     emoji:'🚫', color:'#991B1B', pts:15},
+    {label:'Hold Music',   emoji:'🎵', color:'#7F1D1D', pts:10},
+    {label:'Bufferbloat',  emoji:'🐌', color:'#BE123C', pts:20},
+    {label:'Ticket #4821', emoji:'⏳', color:'#9F1239', pts:12},
+    {label:'Rate Hike',    emoji:'💀', color:'#881337', pts:25},
+  ];
+
+  /* ── INPUT ── */
+  canvas.onmousemove = function(e) {
+    var r = canvas.getBoundingClientRect();
+    hatX = e.clientX - r.left;
+  };
+  canvas.ontouchmove = function(e) {
+    e.preventDefault();
+    var r = canvas.getBoundingClientRect();
+    hatX = e.touches[0].clientX - r.left;
+  };
+
+  /* Click = fire lasso toward click point */
+  canvas.addEventListener('click', function(e) {
+    var r = canvas.getBoundingClientRect();
+    var tx = e.clientX - r.left;
+    var ty = e.clientY - r.top;
+    fireLasso(hatX, H - 65, tx, ty);
+  });
+
+  /* ── TICKER ── */
+  tickInterval = setInterval(function() {
+    timeLeft--;
+    document.getElementById('game-timer').textContent = timeLeft;
+    if (comboTimer > 0) { comboTimer--; } else { combo = 0; }
+    if (timeLeft <= 0) { clearInterval(tickInterval); endGame(); }
+  }, 1000);
+
+  /* ── HAT DRAWING (upside-down, open brim at top) ── */
+  function drawHat(x, y) {
+    /* glow around brim */
+    var g = ctx.createRadialGradient(x, y-20, 10, x, y-20, 55);
+    g.addColorStop(0, 'rgba(232,106,26,0.18)');
+    g.addColorStop(1, 'rgba(232,106,26,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(x, y-20, 55, 14, 0, 0, Math.PI*2); ctx.fill();
+    /* brim */
+    ctx.fillStyle = '#E86A1A';
+    ctx.beginPath(); ctx.ellipse(x, y-20, 44, 9, 0, 0, Math.PI*2); ctx.fill();
+    /* band */
+    ctx.fillStyle = '#8B2200'; ctx.fillRect(x-26, y-13, 52, 7);
+    /* crown (trapezoid, open top) */
+    ctx.fillStyle = '#C85500';
+    ctx.beginPath();
+    ctx.moveTo(x-25, y-6); ctx.lineTo(x-17, y+22);
+    ctx.lineTo(x+17, y+22); ctx.lineTo(x+25, y-6);
+    ctx.closePath(); ctx.fill();
+    /* inner shade */
+    var sh = ctx.createLinearGradient(x-25, y-6, x+25, y-6);
+    sh.addColorStop(0, 'rgba(0,0,0,0.25)');
+    sh.addColorStop(0.5, 'rgba(0,0,0,0)');
+    sh.addColorStop(1, 'rgba(0,0,0,0.25)');
+    ctx.fillStyle = sh;
+    ctx.beginPath();
+    ctx.moveTo(x-25, y-6); ctx.lineTo(x-17, y+22);
+    ctx.lineTo(x+17, y+22); ctx.lineTo(x+25, y-6);
+    ctx.closePath(); ctx.fill();
+  }
+
+  /* ── ITEM DRAWING ── */
+  function drawItem(v) {
+    var rr = 7, rw = v.w, rh = v.h;
+    var rx = v.x - rw/2, ry = v.y - rh/2;
+    /* shadow */
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(rx+rr+2,ry+3); ctx.lineTo(rx+rw-rr+2,ry+3);
+    ctx.quadraticCurveTo(rx+rw+2,ry+3,rx+rw+2,ry+rr+3);
+    ctx.lineTo(rx+rw+2,ry+rh-rr+3);
+    ctx.quadraticCurveTo(rx+rw+2,ry+rh+3,rx+rw-rr+2,ry+rh+3);
+    ctx.lineTo(rx+rr+2,ry+rh+3);
+    ctx.quadraticCurveTo(rx+2,ry+rh+3,rx+2,ry+rh-rr+3);
+    ctx.lineTo(rx+2,ry+rr+3);
+    ctx.quadraticCurveTo(rx+2,ry+3,rx+rr+2,ry+3);
+    ctx.closePath(); ctx.fill();
+    /* card */
+    ctx.fillStyle = v.isBad ? v.color : v.color;
+    ctx.beginPath();
+    ctx.moveTo(rx+rr,ry); ctx.lineTo(rx+rw-rr,ry);
+    ctx.quadraticCurveTo(rx+rw,ry,rx+rw,ry+rr);
+    ctx.lineTo(rx+rw,ry+rh-rr);
+    ctx.quadraticCurveTo(rx+rw,ry+rh,rx+rw-rr,ry+rh);
+    ctx.lineTo(rx+rr,ry+rh);
+    ctx.quadraticCurveTo(rx,ry+rh,rx,ry+rh-rr);
+    ctx.lineTo(rx,ry+rr);
+    ctx.quadraticCurveTo(rx,ry,rx+rr,ry);
+    ctx.closePath(); ctx.fill();
+    /* bad item red border pulse */
+    if (v.isBad) {
+      ctx.strokeStyle = 'rgba(255,50,50,0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    /* emoji + label */
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.font = 'bold 11px Nunito,sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(v.emoji + ' ' + v.label, v.x, v.y);
+  }
+
+  /* ── LASSO FIRING ── */
+  function fireLasso(fromX, fromY, toX, toY) {
+    var dx = toX - fromX, dy = toY - fromY;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    var speed = 12;
+    lassos.push({
+      x: fromX, y: fromY,
+      vx: (dx/dist) * speed,
+      vy: (dy/dist) * speed,
+      trail: [{x: fromX, y: fromY}],
+      alive: true,
+      age: 0,
+    });
+  }
+
+  /* ── EXPLOSION EFFECT ── */
+  function spawnExplosion(x, y, color, label) {
+    var ps = [];
+    var emojis = ['💥','✨','⚡','🔥'];
+    for (var i = 0; i < 14; i++) {
+      var angle = (i/14)*Math.PI*2;
+      ps.push({
+        x:x, y:y,
+        vx: Math.cos(angle)*(2+Math.random()*4),
+        vy: Math.sin(angle)*(2+Math.random()*4),
+        life:1, color:color,
+        r: 3+Math.random()*5,
+      });
+    }
+    explosions.push({x:x, y:y, label:label, life:1.2, emoji:emojis[Math.floor(Math.random()*emojis.length)], parts:ps});
+  }
+
+  /* ── CATCH EFFECT ── */
+  function spawnCatch(x, y, color, pts, good) {
+    for (var i=0; i<8; i++) {
+      var angle = (i/8)*Math.PI*2;
+      particles.push({
+        x:x, y:y,
+        vx: Math.cos(angle)*(1.5+Math.random()*3),
+        vy: Math.sin(angle)*(1.5+Math.random()*3) - 1,
+        life:1, color:good ? color : '#ef4444',
+        text: (good?'+':'-') + pts,
+        isText: i===0,
+      });
+    }
+  }
+
+  /* ── MAIN LOOP ── */
+  function loop(ts) {
+    if (!gameState) return;
+    var hatY = H - 65;
+
+    /* background */
+    ctx.fillStyle = '#051830';
+    ctx.fillRect(0, 0, W, H);
+
+    /* grid */
+    ctx.strokeStyle = 'rgba(26,159,224,0.04)';
+    ctx.lineWidth = 1;
+    for (var gx=0; gx<W; gx+=40) { ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
+    for (var gy=0; gy<H; gy+=40) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
+
+    /* ── SPAWN ── */
+    var spawnRate = Math.max(480, 1050 - (30-timeLeft)*15);
+    if (ts - lastSpawn > spawnRate) {
+      lastSpawn = ts;
+      var isBad = Math.random() < 0.42; /* ~42% bad items */
+      var pool = isBad ? BAD : GOOD;
+      var def = pool[Math.floor(Math.random()*pool.length)];
+      items.push({
+        x: 35 + Math.random()*(W-70),
+        y: -30,
+        speed: 1.6 + Math.random()*2.2 + (30-timeLeft)*0.065,
+        wobble: Math.random()*Math.PI*2,
+        w: 88, h: 30,
+        label: def.label, emoji: def.emoji,
+        color: def.color, pts: def.pts,
+        isBad: isBad,
+        alive: true,
+      });
+    }
+
+    /* ── HAT TRAIL ── */
+    ctx.save();
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = '#E86A1A';
+    ctx.beginPath(); ctx.ellipse(hatX, hatY-20, 44, 9, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    /* ── ITEMS ── */
+    items = items.filter(function(v) {
+      if (!v.alive) return false;
+      v.y += v.speed;
+      v.wobble += 0.035;
+      v.x += Math.sin(v.wobble) * 0.5;
+
+      /* CATCH: good item hits hat brim */
+      if (!v.isBad && v.y+v.h/2 >= hatY-30 && v.y+v.h/2 <= hatY+5 && v.x >= hatX-40 && v.x <= hatX+40) {
+        score += v.pts;
+        caught++;
+        combo++; comboTimer = 3;
+        if (combo > maxCombo) maxCombo = combo;
+        document.getElementById('game-score').textContent = score;
+        spawnCatch(v.x, v.y, v.color, v.pts, true);
+        return false;
+      }
+      /* WRONG: bad item hits hat (penalty) */
+      if (v.isBad && v.y+v.h/2 >= hatY-30 && v.y+v.h/2 <= hatY+5 && v.x >= hatX-40 && v.x <= hatX+40) {
+        score = Math.max(0, score - v.pts);
+        wrongCatch++;
+        combo = 0;
+        document.getElementById('game-score').textContent = score;
+        spawnCatch(v.x, v.y, '#ef4444', v.pts, false);
+        spawnExplosion(v.x, v.y, '#ef4444', '-' + v.pts + ' ouch!');
+        return false;
+      }
+      /* fell off bottom */
+      if (v.y > H + 40) { missed++; return false; }
+
+      drawItem(v);
+      return true;
+    });
+
+    /* ── LASSOS ── */
+    lassos = lassos.filter(function(l) {
+      l.age++;
+      l.x += l.vx; l.y += l.vy;
+      l.trail.push({x:l.x, y:l.y});
+      if (l.trail.length > 12) l.trail.shift();
+
+      /* draw lasso rope */
+      if (l.trail.length > 1) {
+        ctx.save();
+        for (var ti=1; ti<l.trail.length; ti++) {
+          var alpha = ti / l.trail.length;
+          ctx.strokeStyle = 'rgba(232,106,26,' + (alpha*0.9) + ')';
+          ctx.lineWidth = 2.5 * alpha;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(l.trail[ti-1].x, l.trail[ti-1].y);
+          ctx.lineTo(l.trail[ti].x, l.trail[ti].y);
+          ctx.stroke();
+        }
+        ctx.restore();
+        /* lasso tip glow */
+        ctx.save();
+        ctx.shadowColor = '#E86A1A';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath(); ctx.arc(l.x, l.y, 4, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+
+      /* lasso hits bad item */
+      var hit = false;
+      items = items.filter(function(v) {
+        if (!v.alive || !v.isBad) return true;
+        var dx = l.x - v.x, dy = l.y - v.y;
+        if (Math.sqrt(dx*dx + dy*dy) < 36) {
+          score += v.pts;
+          blasted++;
+          combo++; comboTimer = 3;
+          if (combo > maxCombo) maxCombo = combo;
+          document.getElementById('game-score').textContent = score;
+          spawnExplosion(v.x, v.y, v.color, '💥 +' + v.pts);
+          hit = true;
+          return false;
+        }
+        return true;
+      });
+      if (hit) { l.alive = false; }
+
+      /* lasso hits good item (penalty) */
+      items.forEach(function(v) {
+        if (!v.alive || v.isBad) return;
+        var dx = l.x - v.x, dy = l.y - v.y;
+        if (Math.sqrt(dx*dx + dy*dy) < 30) {
+          score = Math.max(0, score - v.pts);
+          combo = 0;
+          document.getElementById('game-score').textContent = score;
+          spawnExplosion(v.x, v.y, '#6EC6F0', '⚠️ -' + v.pts);
+          v.alive = false;
+          l.alive = false;
+        }
+      });
+
+      /* out of bounds */
+      if (l.x < -20 || l.x > W+20 || l.y < -20 || l.y > H+20 || l.age > 80) l.alive = false;
+      return l.alive;
+    });
+
+    /* ── EXPLOSIONS ── */
+    explosions = explosions.filter(function(ex) {
+      ex.life -= 0.035;
+      if (ex.life <= 0) return false;
+      ex.parts.forEach(function(p) {
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.12; p.life -= 0.04;
+        if (p.life > 0) {
+          ctx.save(); ctx.globalAlpha = p.life;
+          ctx.fillStyle = p.color;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+          ctx.restore();
+        }
+      });
+      /* label */
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, ex.life);
+      ctx.font = 'bold 13px Nunito,sans-serif';
+      ctx.fillStyle = '#facc15';
+      ctx.textAlign = 'center';
+      ctx.fillText(ex.emoji + ' ' + ex.label, ex.x, ex.y - (1.2-ex.life)*40);
+      ctx.restore();
+      return true;
+    });
+
+    /* ── PARTICLES ── */
+    particles = particles.filter(function(p) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= 0.04;
+      if (p.life <= 0) return false;
+      ctx.save(); ctx.globalAlpha = p.life;
+      if (p.isText) {
+        ctx.font = 'bold ' + (combo>=3?15:13) + 'px Nunito,sans-serif';
+        ctx.fillStyle = combo>=3 ? '#facc15' : p.color;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(p.text, p.x, p.y);
+      } else {
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+      return true;
+    });
+
+    /* ── HUD ── */
+    drawHat(hatX, hatY);
+
+    /* instructions bar */
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(0, H-22, W, 22);
+    ctx.font = '10px Nunito,sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText('🤠 Move to CATCH invoices · Click to LASSO costs away', 8, H-11);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(26,159,224,0.7)';
+    ctx.fillText('🎯 Caught: ' + caught + '   💥 Blasted: ' + blasted, W-8, H-11);
+    ctx.restore();
+
+    /* combo */
+    if (combo >= 2 && comboTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, comboTimer * 0.5);
+      ctx.font = 'bold ' + (14+combo*2) + 'px Nunito,sans-serif';
+      ctx.fillStyle = '#facc15';
+      ctx.textAlign = 'center';
+      ctx.fillText('COMBO x' + combo + '!', W/2, 38);
+      ctx.restore();
+    }
+
+    /* HUD score */
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.font = 'bold 11px Nunito,sans-serif';
+    ctx.fillText('Score: ' + score, 10, 10);
+
+    gameState.raf = requestAnimationFrame(loop);
+  }
+
+  gameState = {raf: null};
+  gameState.raf = requestAnimationFrame(loop);
+
+  /* ── END GAME ── */
+  function endGame() {
+    cancelAnimationFrame(gameState.raf);
+    gameState = null;
+    var hatY = H - 65;
+    ctx.fillStyle = 'rgba(5,24,48,0.94)'; ctx.fillRect(0,0,W,H);
+    ctx.textAlign = 'center';
+
+    /* title */
+    ctx.font = 'bold 22px Nunito,sans-serif'; ctx.fillStyle = '#F5956A';
+    ctx.fillText('🤠 Round Over!', W/2, H/2-100);
+
+    /* score */
+    ctx.font = 'bold 58px Nunito,sans-serif'; ctx.fillStyle = '#E86A1A';
+    ctx.fillText(score, W/2, H/2-44);
+
+    /* stats */
+    ctx.font = '13px Nunito,sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fillText('Vendors Consolidated: ' + caught + '   Costs Blasted: ' + blasted, W/2, H/2+16);
+    if (maxCombo >= 3) {
+      ctx.font = 'bold 12px Nunito,sans-serif'; ctx.fillStyle = '#facc15';
+      ctx.fillText('Best Combo: x' + maxCombo + ' 🔥', W/2, H/2+40);
+    }
+
+    /* message */
+    var msg;
+    if (blasted > caught*1.5) msg = 'Cost eliminator. 🤠 Finance teams love you.';
+    else if (caught > blasted*1.5) msg = 'Natural consolidator. You were born for this.';
+    else if (score >= 300) msg = 'You ran the whole operation. Call us. 🤠';
+    else if (score >= 150) msg = 'Solid work. HowdyNET handles the rest.';
+    else msg = 'That\'s exactly why you need us. 😄';
+    ctx.font = 'bold 13px Nunito,sans-serif'; ctx.fillStyle = '#6EC6F0';
+    ctx.fillText(msg, W/2, H/2+68);
+
+    ctx.font = '11px Nunito,sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillText('One hat. All the cattle. Zero chaos. Call HowdyNET.', W/2, H/2+96);
+  }
+}
+
+/* ── SCROLLSPY ── */
+(function() {
+  var ids = ['internet', 'lan', 'plans', 'about', 'contact'];
+  var links = {};
+  ids.forEach(function(id) { var a = document.querySelector('.nav-links a[href="#' + id + '"]'); if (a) links[id] = a; });
+  var last = null;
+  function tick() {
+    var y = window.scrollY + 70, cur = null;
+    ids.forEach(function(id) { var el = document.getElementById(id); if (el && el.offsetTop <= y) cur = id; });
+    if (cur === last) return;
+    last = cur;
+    Object.keys(links).forEach(function(k) { links[k].classList.remove('active'); });
+    if (cur && links[cur]) links[cur].classList.add('active');
+  }
+  window.addEventListener('scroll', tick, { passive: true });
+  tick();
+})();
+
+/* ── HAMBURGER ── */
+function toggleMenu() {
+  var m = document.getElementById('mobileMenu');
+  var b = document.querySelector('.nav-hamburger');
+  if (m && b) { m.classList.toggle('open'); b.classList.toggle('open'); }
+}
+function closeMenu() {
+  var m = document.getElementById('mobileMenu');
+  var b = document.querySelector('.nav-hamburger');
+  if (m) m.classList.remove('open');
+  if (b) b.classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+  var m = document.getElementById('mobileMenu');
+  var b = document.querySelector('.nav-hamburger');
+  if (m && b && !m.contains(e.target) && !b.contains(e.target)) closeMenu();
+});
+
+/* ── INIT CALCULATORS ── */
+document.addEventListener('DOMContentLoaded', function() {
+  updateVendorCalc();
+  updateDowntimeCalc();
+});
+
+</script>
+
+<script is:inline>
+
+/* ── CUSTOM QUOTE MODAL ── */
+function openQuoteModal() {
+  var el = document.getElementById('quote-modal');
+  el.style.display = 'flex';
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() { el.classList.add('show'); });
+  });
+}
+function closeQuoteModal() {
+  var el = document.getElementById('quote-modal');
+  el.classList.remove('show');
+  setTimeout(function() { el.style.display = 'none'; }, 300);
+}
+function submitQuote(e) {
+  e.preventDefault();
+  var btn = e.target.querySelector('.quote-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  postForm(e.target).then(function(ok) {
+    if (ok) { showQuoteSuccess(); return; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Send My Quote Request →'; }
+  });
+}
+function showQuoteSuccess() {
+  var form = document.querySelector('#quote-modal .quote-form');
+  if (form) form.style.display = 'none';
+  var ok = document.getElementById('quote-success');
+  if (ok) ok.style.display = 'block';
+}
+document.addEventListener('DOMContentLoaded', function() {
+  var qm = document.getElementById('quote-modal');
+  if (qm) qm.addEventListener('click', function(e) { if (e.target === this) closeQuoteModal(); });
+});
+
+</script>
+
+<script is:inline>
+/* ── LED WALL SIMULATION ── */
+(function() {
+  var sim = document.getElementById('led-sim');
+  if (!sim) return;
+  var colors = [
+    '#E86A1A','#C85500','#1A9FE0','#0A6EBD',
+    '#F5956A','#6EC6F0','#8B2200','#051830',
+    '#facc15','#22c55e'
+  ];
+  var tiles = [];
+  for (var r = 0; r < 5; r++) {
+    for (var c = 0; c < 8; c++) {
+      var tile = document.createElement('div');
+      tile.className = 'av-led-tile';
+      var color = colors[Math.floor(Math.random() * colors.length)];
+      tile.style.background = color;
+      tile.style.setProperty('--dur', (2 + Math.random() * 3).toFixed(1) + 's');
+      tile.style.setProperty('--del', (Math.random() * 2).toFixed(1) + 's');
+      sim.appendChild(tile);
+      tiles.push({el: tile, colors: colors});
+    }
+  }
+  // Slowly shift colors for living display effect
+  setInterval(function() {
+    var tile = tiles[Math.floor(Math.random() * tiles.length)];
+    tile.el.style.background = colors[Math.floor(Math.random() * colors.length)];
+  }, 400);
+})();
+</script>
+
+<script is:inline>
+/* ══ HOWDYNET FUN — floating hat, cursor trail, image flood, konami ══ */
+window.addEventListener('load', function() {
+
+  /* helpers */
+  var COLORS = ['#E86A1A','#F5956A','#1A9FE0','#6EC6F0','#facc15','#C85500','#22c55e'];
+
+  function showToast(msg) {
+    var t = document.createElement('div');
+    t.className = 'logo-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+    setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 400); }, 2800);
+  }
+
+  function spawnConfetti(cx, cy, n) {
+    for (var i = 0; i < n; i++) {
+      (function(idx) {
+        setTimeout(function() {
+          var p = document.createElement('div');
+          var angle = (idx / n) * Math.PI * 2;
+          var dist  = 50 + Math.random() * 110;
+          p.style.cssText = [
+            'position:fixed','width:9px','height:9px','border-radius:2px',
+            'pointer-events:none','z-index:9998',
+            'left:' + cx + 'px', 'top:' + cy + 'px',
+            'background:' + COLORS[idx % COLORS.length],
+            'animation:confetti-fall 0.75s ease-out forwards'
+          ].join(';');
+          p.style.setProperty('--cx', (Math.cos(angle)*dist) + 'px');
+          p.style.setProperty('--ch', (80 + Math.random()*140) + 'px');
+          p.style.setProperty('--cr', ((Math.random()>.5?'':'-') + (180+Math.random()*360)) + 'deg');
+          document.body.appendChild(p);
+          setTimeout(function(){ p.remove(); }, 900);
+        }, idx * 18);
+      })(i);
+    }
+  }
+  window.spawnConfetti = spawnConfetti;
+
+  /* ── FLOATING HAT ── */
+  var hat = document.getElementById('floating-hat');
+  if (hat) {
+    var ht = Math.random() * Math.PI * 2;
+    var hClicks = 0;
+    var isOrange = true;
+    (function animHat() {
+      ht += 0.007;
+      var x = Math.max(60, Math.min(window.innerWidth  - 80, window.innerWidth  * 0.82 + 90 * Math.sin(ht)));
+      var y = Math.max(80, Math.min(window.innerHeight - 90, window.innerHeight * 0.65 + 55 * Math.sin(2*ht)));
+      hat.style.left = x + 'px';
+      hat.style.top  = y + 'px';
+      requestAnimationFrame(animHat);
+    })();
+
+    hat.addEventListener('click', function(e) {
+      e.stopPropagation();
+      spawnConfetti(e.clientX, e.clientY, 22);
+      var idx = hClicks % 5;
+      if (idx === 0 && window.rainHats) window.rainHats();
+      else if (idx === 1) { isOrange=!isOrange; hat.textContent=isOrange?'🤠':'🎩'; showToast(isOrange?'Back to orange! 🟠':'Business casual mode 🎩'); }
+      else if (idx === 2) showToast('One call. Every system. Zero excuses. 🤠');
+      else if (idx === 3) { if (window.rainHats) window.rainHats(); spawnConfetti(e.clientX, e.clientY, 40); }
+      else                showToast('No data caps. No ticket queues. No BS. 🤠');
+      hClicks++;
+    });
+  }
+
+  /* ── CURSOR SPARK TRAIL ── */
+  var lastX=0, lastY=0, lastT=0, sIdx=0;
+  document.addEventListener('mousemove', function(e) {
+    var now = Date.now();
+    var dx = e.clientX-lastX, dy = e.clientY-lastY;
+    if (Math.sqrt(dx*dx+dy*dy) < 8 || now-lastT < 28) return;
+    lastX=e.clientX; lastY=e.clientY; lastT=now;
+    var sp = document.createElement('div');
+    sp.style.cssText = [
+      'position:fixed','width:8px','height:8px','border-radius:50%',
+      'pointer-events:none','z-index:9997',
+      'left:'+e.clientX+'px','top:'+e.clientY+'px',
+      'background:'+COLORS[sIdx%COLORS.length],
+      'animation:spark-fade 0.55s ease-out forwards'
+    ].join(';');
+    sp.style.setProperty('--sx', ((Math.random()-.5)*28)+'px');
+    sp.style.setProperty('--sy', (Math.random()*16+4)+'px');
+    document.body.appendChild(sp);
+    setTimeout(function(){ sp.remove(); }, 620);
+    sIdx++;
+  });
+
+  /* ── IMAGE FLOOD — click any embedded image 5x within 1.5s ── */
+  var imgHits = {}, imgTimers = {};
+
+  document.addEventListener('click', function(e) {
+    var img = null;
+    var tgt = e.target;
+    /* direct image click */
+    if (tgt.tagName === 'IMG' && tgt.src && tgt.src.indexOf('data:image') === 0) img = tgt;
+    /* click on a div that wraps an embedded img (logo panels) */
+    if (!img && tgt.closest) {
+      var wrap = tgt.closest('.panel-logo-wrap, .panel-hat-wrap, .popup-flip-front, .popup-flip-back, .about-logo-wrap');
+      if (wrap) { var found = wrap.querySelector('img[src^="data:image"]'); if (found) img = found; }
+    }
+    if (!img) return;
+
+    var key = img.src.slice(0, 48);
+    imgHits[key] = (imgHits[key] || 0) + 1;
+    clearTimeout(imgTimers[key]);
+    imgTimers[key] = setTimeout(function() { imgHits[key] = 0; }, 1500);
+
+    spawnConfetti(e.clientX, e.clientY, 5);
+
+    if (imgHits[key] >= 5) {
+      imgHits[key] = 0;
+      floodImage(img.src, e.clientX, e.clientY);
+    }
+  });
+
+  function floodImage(src, cx, cy) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9996;overflow:hidden;';
+    document.body.appendChild(wrap);
+
+    var total = 35, spawned = 0;
+    var spawnDur = 2200;
+    var interval = spawnDur / total;
+
+    var ticker = setInterval(function() {
+      if (spawned >= total) { clearInterval(ticker); setTimeout(function(){ wrap.remove(); }, 1500); return; }
+      spawned++;
+
+      var size  = 55 + Math.random() * 75;
+      var startX = Math.random() * window.innerWidth;
+      var color  = COLORS[spawned % COLORS.length];
+
+      /* falling image */
+      var el = document.createElement('img');
+      el.src = src;
+      el.style.cssText = [
+        'position:absolute','width:'+size+'px','height:'+size+'px',
+        'object-fit:contain','left:'+startX+'px','top:'+(-size-10)+'px',
+        'border-radius:10px',
+        'filter:drop-shadow(0 6px 18px rgba(0,0,0,0.45))',
+        'will-change:transform'
+      ].join(';');
+      wrap.appendChild(el);
+
+      /* physics */
+      var px = startX, py = -(size+10);
+      var vx = (Math.random()-.5)*3.5;
+      var vy = 2.5 + Math.random()*4;
+      var rot = (Math.random()-.5)*30;
+      var rotV = (Math.random()-.5)*6;
+      var bounces = 0;
+      var alpha = 1;
+
+      (function fall() {
+        vy += 0.45; /* gravity */
+        px += vx; py += vy;
+        vx *= 0.995;
+        rot += rotV;
+
+        /* bounce */
+        if (py + size >= window.innerHeight - 10) {
+          py = window.innerHeight - size - 10;
+          vy *= -0.38;
+          rotV *= -0.5;
+          bounces++;
+          spawnConfetti(px + size/2, py + size, 4);
+        }
+
+        if (bounces >= 2) alpha -= 0.03;
+        if (alpha <= 0) { el.remove(); return; }
+
+        el.style.transform = 'translate('+( px-startX)+'px,'+py+'px) rotate('+rot+'deg)';
+        el.style.opacity = alpha;
+
+        /* color spark trail while falling */
+        if (Math.random() < 0.35) {
+          var sp2 = document.createElement('div');
+          sp2.style.cssText = [
+            'position:absolute','width:7px','height:7px','border-radius:50%',
+            'left:'+(px+size/2-3.5)+'px','top:'+(py+size*0.3)+'px',
+            'background:'+color,'pointer-events:none',
+            'animation:spark-fade 0.5s ease-out forwards'
+          ].join(';');
+          sp2.style.setProperty('--sx', ((Math.random()-.5)*18)+'px');
+          sp2.style.setProperty('--sy', (Math.random()*14+3)+'px');
+          wrap.appendChild(sp2);
+          setTimeout(function(){ sp2.remove(); }, 560);
+        }
+
+        requestAnimationFrame(fall);
+      })();
+    }, interval);
+
+    showToast('🤠 Yeehaw! Everything under one hat!');
+  }
+
+  /* ── KONAMI CODE → COWBOY MODE ── */
+  var KS = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  var kp = 0, kt = null;
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeKonami(); return; }
+    if (e.key === KS[kp]) {
+      kp++;
+      clearTimeout(kt);
+      kt = setTimeout(function(){ kp=0; }, 2000);
+      if (kp === KS.length) { kp=0; launchKonami(); }
+    } else {
+      kp = (e.key === KS[0]) ? 1 : 0;
+    }
+  });
+
+  function launchKonami() {
+    var ov = document.getElementById('konami-overlay');
+    if (ov) ov.classList.add('show');
+    if (window.rainHats) window.rainHats();
+    for (var i=0; i<5; i++) {
+      (function(ii){
+        setTimeout(function(){
+          var tw = document.createElement('div');
+          tw.className = 'tumbleweed';
+          tw.textContent = '🌵';
+          tw.style.top = (15+Math.random()*65)+'vh';
+          tw.style.animationDuration = (3+Math.random()*2.5)+'s';
+          tw.style.animationDelay = (ii*0.4)+'s';
+          document.body.appendChild(tw);
+          setTimeout(function(){ tw.remove(); }, 9000);
+        }, ii*500);
+      })(i);
+    }
+  }
+
+}); /* end load */
+
+function closeKonami() {
+  var el = document.getElementById('konami-overlay');
+  if (el) el.classList.remove('show');
+}
+</script>
+
+<script is:inline>
+/* ── STICKY BAR ── */
+(function() {
+  var bar = document.getElementById('sticky-bar');
+  if (!bar) return;
+  var dismissed = sessionStorage.getItem('barDismissed');
+  if (dismissed) return;
+  var shown = false;
+  window.addEventListener('scroll', function() {
+    if (shown) return;
+    if (window.scrollY > 400) {
+      shown = true;
+      bar.classList.add('visible');
+    }
+  }, {passive: true});
+})();
+function dismissBar() {
+  var bar = document.getElementById('sticky-bar');
+  if (bar) { bar.classList.remove('visible'); sessionStorage.setItem('barDismissed','1'); }
+}
+</script>
+
+<script is:inline>
+/* ── NAV DROPDOWN — hover + click for all environments ── */
+(function() {
+  document.querySelectorAll('.nav-dropdown').forEach(function(dd) {
+    var menu = dd.querySelector('.nav-dropdown-menu');
+    var toggle = dd.querySelector('.nav-dropdown-toggle');
+    if (!menu) return;
+    var open = false;
+    var timer;
+
+    function showMenu() {
+      clearTimeout(timer);
+      open = true;
+      menu.style.visibility = 'visible';
+      menu.style.opacity = '1';
+      menu.style.transform = 'translateX(-50%) translateY(0)';
+      menu.style.pointerEvents = 'all';
+      if (toggle) toggle.style.color = 'rgba(255,255,255,0.9)';
+    }
+    function hideMenu(delay) {
+      timer = setTimeout(function() {
+        open = false;
+        menu.style.visibility = 'hidden';
+        menu.style.opacity = '0';
+        menu.style.transform = 'translateX(-50%) translateY(-4px)';
+        menu.style.pointerEvents = 'none';
+        if (toggle) toggle.style.color = '';
+      }, delay || 0);
+    }
+
+    /* hover */
+    dd.addEventListener('mouseenter', function() { showMenu(); });
+    dd.addEventListener('mouseleave', function() { hideMenu(120); });
+
+    /* click toggle — works in sandboxed previews too */
+    if (toggle) {
+      toggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (open) { hideMenu(0); } else { showMenu(); }
+      });
+    }
+
+    /* close when clicking a menu item */
+    menu.querySelectorAll('a').forEach(function(a) {
+      a.addEventListener('click', function() { hideMenu(0); });
+    });
+  });
+
+  /* close dropdown when clicking outside */
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.nav-dropdown')) {
+      document.querySelectorAll('.nav-dropdown-menu').forEach(function(m) {
+        m.style.visibility = 'hidden';
+        m.style.opacity = '0';
+        m.style.pointerEvents = 'none';
+      });
+    }
+  });
+})();
+</script>
+
+<script is:inline>
+/* ── COOKIE BANNER ── */
+(function() {
+  var KEY = 'howdynet_cookie_consent';
+  var banner = document.getElementById('howdy-cookie-banner');
+  var btnA = document.getElementById('cb-accept');
+  var btnD = document.getElementById('cb-decline');
+  function setCookie(n,v,d){ var e=new Date(); e.setTime(e.getTime()+(d*864e5)); document.cookie=n+'='+v+';expires='+e.toUTCString()+';path=/;SameSite=Lax'; }
+  function getCookie(n){ var r=new RegExp('(?:^|; )'+n+'=([^;]*)'); var m=document.cookie.match(r); return m?m[1]:null; }
+  if (!getCookie(KEY)) { setTimeout(function(){ banner.classList.add('cb-visible'); }, 1400); }
+  btnA.addEventListener('click', function(){ setCookie(KEY,'accepted',365); banner.classList.remove('cb-visible'); });
+  btnD.addEventListener('click', function(){ setCookie(KEY,'declined',180); banner.classList.remove('cb-visible'); });
+})();
+</script>

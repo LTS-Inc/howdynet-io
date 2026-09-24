@@ -1,0 +1,149 @@
+---
+import { Image } from "astro:assets";
+import hatOrange from "../assets/hat-orange.png";
+import hatBlue from "../assets/hat-blue.png";
+---
+<!-- ══ FLOATING HAT ══ -->
+<div id="floating-hat" title="Click me! 🤠">🤠</div>
+
+<!-- ══ KONAMI MODE ══ -->
+<div class="konami-overlay" id="konami-overlay">
+  <button class="konami-close" onclick="closeKonami()">×</button>
+  <div style="font-size:5rem;margin-bottom:16px;animation:howdy-pulse 1s ease-in-out infinite alternate;">🤠</div>
+  <div class="konami-title">HOWDY PARTNER!</div>
+  <div class="konami-sub">You found the cowboy code. Welcome to the HowdyNET inner circle.<br/>
+    <span style="color:var(--sky);font-weight:700;">↑↑↓↓←→←→BA</span> — nice work, partner.
+  </div>
+  <div style="margin-top:32px;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;">
+    <a href="#contact" onclick="closeKonami()" style="font-family:'Nunito',sans-serif;font-size:0.9rem;font-weight:800;background:var(--flame);color:#fff;padding:13px 28px;border-radius:10px;text-decoration:none;">Say Howdy →</a>
+    <a href="/coverage" style="font-family:'Nunito',sans-serif;font-size:0.9rem;font-weight:800;background:rgba(26,159,224,0.15);color:var(--sky);border:1px solid rgba(26,159,224,0.3);padding:13px 28px;border-radius:10px;text-decoration:none;">Check My Coverage</a>
+  </div>
+  <div style="position:absolute;bottom:20px;font-size:0.65rem;color:rgba(255,255,255,0.15);">Press Escape to exit cowboy mode</div>
+</div>
+
+
+<!-- Mobile menu drawer -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#internet" onclick="closeMenu()">Internet & WAN</a>
+  <a href="#lan" onclick="closeMenu()">LAN Solutions</a>
+  <a href="#plans" onclick="closeMenu()">Plans</a>
+  <a href="#about" onclick="closeMenu()">About</a>
+  <a href="#contact" onclick="closeMenu()">Contact</a>
+  <a href="/coverage" class="mobile-coverage">📍 Check Coverage</a>
+  <a href="#contact" class="mobile-cta" onclick="closeMenu()">Get Started →</a>
+</div>
+
+<!-- ── HERO TOP ── -->
+<div class="hero-top">
+  <div class="hero-eyebrow">Texas-Based · US · MX · CA · EU · 75+ Years Ownership Experience</div>
+  <h1 class="hero-headline">Say <span class="hl-o">Howdy</span> to<br/>Better Business Technology.</h1>
+  <p class="hero-sub">All the cattle, one hat. While the big ISPs put you on hold and your IT vendor blames the network vendor — HowdyNET owns all of it. One call. Every system. Someone who actually picks up.</p>
+</div>
+
+<!-- ── HERO SPLIT ── -->
+<div class="hero-split">
+
+  <!-- Orange — LAN -->
+  <div class="panel panel-orange">
+    <div class="panel-hat-wrap">
+      <div class="panel-hat-glow"></div>
+      <Image src={hatOrange} width={512} class="panel-hat" alt="HowdyNET Orange Hat — LAN" />
+    </div>
+    <div class="panel-hat-label">🟠 Orange Hat = Your LAN</div>
+    <div class="panel-title">Local Area Network<br/>Solutions</div>
+    <ul class="panel-cats">
+      <li><a class="panel-cat" href="#lan">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/><path d="M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>
+        Wi-Fi Design & Engineering
+      </a></li>
+      <li><a class="panel-cat" href="#lan">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        Security Cameras & Access Control
+      </a></li>
+      <li><a class="panel-cat" href="#lan">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        Managed IT & Help Desk
+      </a></li>
+      <li><a class="panel-cat" href="#lan">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 19V6l12-3v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Audio / Video Installations
+      </a></li>
+      <li><a class="panel-cat" href="#lan">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        AI & Business Automation
+      </a></li>
+      <li><a class="panel-cat" href="#lan">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Vendor Consolidation
+      </a></li>
+      <li><a class="panel-cat" href="#lan">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M2 10h20"/></svg>
+        Large LED & Display Walls
+      </a></li>
+      <li><a class="panel-cat" href="#lan">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+        Custom Business Apps
+      </a></li>
+    </ul>
+    <a href="#lan" class="btn-panel btn-orange">Explore LAN Solutions →</a>
+  </div>
+
+  <!-- Blue — WAN -->
+  <div class="panel panel-blue">
+    <div class="panel-hat-wrap">
+      <div class="panel-hat-glow"></div>
+      <Image src={hatBlue} width={512} class="panel-hat" alt="HowdyNET Blue Hat — WAN" />
+    </div>
+    <div class="panel-hat-label">🔵 Blue Hat = Your WAN</div>
+    <div class="panel-title">Internet & Wide Area<br/>Network Services</div>
+    <ul class="panel-cats">
+      <li><a class="panel-cat" href="#internet">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        Business Internet Services
+      </a></li>
+      <li><a class="panel-cat" href="#internet">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Fiber & Ethernet Cabling
+      </a></li>
+      <li><a class="panel-cat" href="#internet">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        ISP & Vendor Coordination
+      </a></li>
+      <li><a class="panel-cat" href="#internet">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Network Infrastructure
+      </a></li>
+      <li><a class="panel-cat" href="#internet">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        Hardware & Software Procurement
+      </a></li>
+      <li><a class="panel-cat" href="#internet">
+        <svg class="panel-cat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Custom Software Development
+      </a></li>
+    </ul>
+    <a href="#internet" class="btn-panel btn-blue">Explore Internet Services →</a>
+  </div>
+
+</div>
+
+<!-- ── COVERAGE STRIP ── -->
+<div style="background:#061E35;padding:18px 48px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid rgba(26,159,224,0.15);border-bottom:1px solid rgba(26,159,224,0.15);position:relative;overflow:hidden;">
+  <div style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,transparent 30%,rgba(26,159,224,0.06) 50%,transparent 70%,transparent 100%);background-size:200% 100%;animation:strip-shimmer 4s ease-in-out infinite;pointer-events:none;"></div>
+  <div style="display:flex;align-items:center;gap:14px;position:relative;z-index:1;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A9FE0" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0;animation:pin-bounce 2s ease-in-out infinite;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+    <div>
+      <div style="font-size:0.9rem;font-weight:800;color:#EEF7FF;">Is HowdyNET available at your address?</div>
+      <div style="font-size:0.72rem;color:rgba(238,247,255,0.4);font-weight:400;">Check coverage — or join our waitlist and help us expand there next.</div>
+    </div>
+  </div>
+  <a href="/coverage" style="position:relative;z-index:1;font-family:'Nunito',sans-serif;font-size:0.82rem;font-weight:800;background:#1A9FE0;color:#ffffff;padding:11px 22px;border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0;box-shadow:0 4px 18px rgba(26,159,224,0.3);transition:background 0.2s,transform 0.15s;" onmouseover="this.style.background='#0A6EBD'" onmouseout="this.style.background='#1A9FE0'">Check My Address →</a>
+</div>
+
+<!-- ── STATS ── -->
+<div class="stats">
+  <div class="stat"><div class="stat-num">200+</div><div class="stat-label">Businesses Served</div></div>
+  <div class="stat"><div class="stat-num">75+</div><div class="stat-label">Years of Ownership<br/>Experience</div></div>
+  <div class="stat"><div class="stat-num">24/7</div><div class="stat-label">Real Humans.<br/>Not a Ticket Queue.</div></div>
+  <div class="stat"><div class="stat-num">1</div><div class="stat-label">Number to Call<br/>or Text. Ever.</div></div>
+</div>

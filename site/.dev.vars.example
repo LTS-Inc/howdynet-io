@@ -1,0 +1,3 @@
+# Worker secret for local `wrangler dev` / `astro dev`. Always-pass test secret; production uses
+# `wrangler secret put TURNSTILE_SECRET` (value from `terraform output -raw turnstile_secret`).
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA

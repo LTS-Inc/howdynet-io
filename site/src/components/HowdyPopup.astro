@@ -1,0 +1,49 @@
+---
+import { Image } from "astro:assets";
+import hatOrange from "../assets/hat-orange.png";
+import hatBlue from "../assets/hat-blue.png";
+---
+<!-- ── POPUP ── -->
+<div class="popup-overlay" id="howdy-popup" style="display:none;">
+  <div class="popup">
+    <button class="popup-close" onclick="closeHowdyPopup()">×</button>
+    <div class="popup-left">
+      <div class="popup-flip"><div class="popup-flip-inner">
+        <div class="popup-flip-front"><Image src={hatOrange} width={512} alt="HowdyNET LAN" /></div>
+        <div class="popup-flip-back"><Image src={hatBlue} width={512} alt="HowdyNET WAN" /></div>
+      </div></div>
+      <div class="popup-hat-lbl">🟠 LAN &nbsp;·&nbsp; 🔵 WAN</div>
+    </div>
+    <div class="popup-right">
+      <div class="popup-eyebrow">The HowdyNET Promise</div>
+      <h2 class="popup-headline">One Partner.<br/><em>Every System.</em><br/>Zero Excuses.</h2>
+      <p class="popup-body">Most businesses juggle 4-6 tech vendors who don't talk to each other. We replace all of them under one accountable roof.</p>
+      <ul class="popup-promises">
+        <li><span class="dot-o">●</span><span><strong>Orange Hat</strong> — your local network. Wi-Fi, cameras, AV, IT.</span></li>
+        <li><span class="dot-b">●</span><span><strong>Blue Hat</strong> — your internet. WISP-owned, net neutral, no caps.</span></li>
+        <li><span class="dot-o">●</span><span><strong>One call.</strong> We own it. No finger-pointing. Ever.</span></li>
+      </ul>
+      <div class="popup-btns">
+        <a href="#contact" class="popup-btn-o" onclick="closeHowdyPopup()">Let's Talk →</a>
+        <a href="/coverage" class="popup-btn-b">📍 Check My Coverage</a>
+      </div>
+      <div class="popup-dismiss" onclick="closeHowdyPopup()">I'll explore on my own</div>
+    </div>
+  </div>
+</div>
+<div class="game-overlay" id="game-overlay">
+  <div style="text-align:center;max-width:500px;padding:0 20px 12px;">
+    <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:var(--flame);margin-bottom:5px;">🤠 The HowdyNET Way</div>
+    <div style="font-size:1rem;font-weight:900;color:var(--ice);margin-bottom:5px;">Get all your IT under one hat.</div>
+    <div style="font-size:0.72rem;color:rgba(255,255,255,0.4);line-height:1.6;">Most businesses juggle a dozen vendors — ISPs, IT, cameras, AV, all separate. We put everything under one hat. Catch them all, just like we do.</div>
+  </div>
+  <div class="game-wrap">
+    <div class="game-ui">
+      <div class="game-score">Caught: <span id="game-score">0</span></div>
+      <button class="game-close" onclick="closeGame()">× Close</button>
+      <div class="game-timer">Time: <span id="game-timer">30</span>s</div>
+    </div>
+    <canvas id="wrangler-canvas" width="520" height="400"></canvas>
+  </div>
+  <div style="font-size:0.78rem;color:rgba(255,255,255,0.35);text-align:center;"><strong style="color:var(--cream)">Move your mouse</strong> to catch falling vendor invoices!</div>
+</div>

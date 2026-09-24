@@ -1,0 +1,44 @@
+---
+import Base from "./Base.astro";
+import "../styles/legal.css";
+
+interface Props {
+  title: string;
+  description: string;
+  variant: "privacy" | "terms";
+  heading: string;      // e.g. "Privacy"
+  headingAccent: string; // e.g. "Policy"
+  effective: string;
+  updated: string;
+}
+const { title, description, variant, heading, headingAccent, effective, updated } = Astro.props;
+---
+<Base title={title} description={description} bodyClass={`legal legal-${variant}`}>
+<nav class="legal-nav">
+  <a class="nav-logo" href="/">Howdy<span>NET</span></a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/terms" class:list={[{ active: variant === "terms" }]}>Terms of Service</a>
+    <a href="/privacy" class:list={[{ active: variant === "privacy" }]}>Privacy Policy</a>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-badge">Legal</div>
+  <h1>{heading} <span>{headingAccent}</span></h1>
+  <div class="hero-meta">Effective Date: {effective} &nbsp;·&nbsp; Last Updated: {updated}</div>
+</div>
+
+<div class="wrapper">
+  <slot />
+</div>
+
+<footer>
+  <span class="footer-logo-sm">Howdy<span>NET</span></span>
+  © 2026 HowdyNET · Austin, Texas
+  <br/>
+  <a href="/">Home</a>
+  <a href="/privacy">Privacy Policy</a>
+  <a href="/terms">Terms of Service</a>
+</footer>
+</Base>

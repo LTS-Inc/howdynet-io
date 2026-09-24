@@ -1,0 +1,7 @@
+---
+// Cloudflare Turnstile widget + honeypot. api.js is loaded once in Base.astro.
+// Sitekey is public; it comes from PUBLIC_TURNSTILE_SITEKEY at build time.
+const sitekey = import.meta.env.PUBLIC_TURNSTILE_SITEKEY ?? "1x00000000000000000000AA";
+---
+<div class="cf-turnstile" data-sitekey={sitekey} data-theme="dark" data-size="flexible" style="margin:6px 0 10px;"></div>
+<input type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" />

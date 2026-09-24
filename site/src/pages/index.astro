@@ -1,0 +1,78 @@
+---
+import Base from "../layouts/Base.astro";
+import Popup from "../components/Popup.astro";
+import Nav from "../components/Nav.astro";
+import Hero from "../components/Hero.astro";
+import Ethos from "../components/Ethos.astro";
+import Industries from "../components/Industries.astro";
+import WhyNot from "../components/WhyNot.astro";
+import Wisp from "../components/Wisp.astro";
+import Internet from "../components/Internet.astro";
+import Lan from "../components/Lan.astro";
+import Plans from "../components/Plans.astro";
+import Calculators from "../components/Calculators.astro";
+import IspPlans from "../components/IspPlans.astro";
+import RanchHand from "../components/RanchHand.astro";
+import FreeDiagnosis from "../components/FreeDiagnosis.astro";
+import CustomApps from "../components/CustomApps.astro";
+import LedAv from "../components/LedAv.astro";
+import About from "../components/About.astro";
+import Proof from "../components/Proof.astro";
+import Community from "../components/Community.astro";
+import Faq from "../components/Faq.astro";
+import Contact from "../components/Contact.astro";
+import Footer from "../components/Footer.astro";
+import HowdyPopup from "../components/HowdyPopup.astro";
+import QuoteModal from "../components/QuoteModal.astro";
+import StickyBar from "../components/StickyBar.astro";
+import CookieBanner from "../components/CookieBanner.astro";
+import SiteScripts from "../components/SiteScripts.astro";
+
+const ld = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: "HowdyNET",
+  description: "Licensed WISP and managed technology partner — internet, networks, security, AV, LED displays, and custom apps under one hat.",
+  url: "https://www.howdynet.io",
+  telephone: "+15122004744",
+  address: { "@type": "PostalAddress", addressLocality: "Austin", addressRegion: "TX", addressCountry: "US" },
+  areaServed: ["US", "MX", "CA", "EU"],
+  priceRange: "$$",
+  sameAs: [],
+  parentOrganization: { "@type": "Organization", name: "LTS - Longoria Technology Solutions", url: "https://longoriatechnologysolutions.co" },
+};
+---
+<Base
+  title="HowdyNET | One Hat. All Your Business Tech. | Austin TX"
+  description="Licensed WISP and managed technology partner in Austin, TX. Internet, networks, security cameras, AV, LED displays, custom apps — one call, one hat, zero vendor chaos. Serving US, Mexico, Canada, and Europe. (512) 200-4744."
+>
+  <script slot="head" type="application/ld+json" is:inline set:html={JSON.stringify(ld)} />
+
+  <Popup />
+  <Nav />
+  <Hero />
+  <Ethos />
+  <Industries />
+  <WhyNot />
+  <Wisp />
+  <Internet />
+  <Lan />
+  <Plans />
+  <Calculators />
+  <IspPlans />
+  <RanchHand />
+  <FreeDiagnosis />
+  <CustomApps />
+  <LedAv />
+  <About />
+  <Proof />
+  <Community />
+  <Faq />
+  <Contact />
+  <Footer />
+  <HowdyPopup />
+  <QuoteModal />
+  <StickyBar />
+  <CookieBanner />
+  <SiteScripts />
+</Base>

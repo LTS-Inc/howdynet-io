@@ -17,5 +17,17 @@ override.tf.json
 terraform.rc
 
 # Local scratch
-*.html
 .DS_Store
+
+# Site (Astro on Cloudflare Workers)
+site/node_modules/
+site/dist/
+site/.wrangler/
+site/.astro/
+site/.dev.vars
+site/.dev.vars.*
+!site/.dev.vars.example
+site/.env
+site/.env.*
+!site/.env.example
+site/worker-configuration.d.ts

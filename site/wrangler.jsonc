@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "howdynet-www",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page"
+  },
+  // Cutover (see README): set workers_dev to false and uncomment routes once the
+  // Pages custom domain and the old `www` DNS record have been removed.
+  "workers_dev": true,
+  // "routes": [{ "pattern": "www.howdynet.io", "custom_domain": true }],
+  "send_email": [
+    { "name": "EMAIL", "destination_address": "support@howdynet.io" }
+  ],
+  "kv_namespaces": [
+    // Create with: npx wrangler kv namespace create FORM_SUBMISSIONS
+    { "binding": "FORM_SUBMISSIONS", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,88 @@
+---
+import Turnstile from "./Turnstile.astro";
+---
+<!-- ── CTA SPLIT ── -->
+<div class="cta">
+  <div class="cta-orange">
+    <h2 class="cta-h">Need LAN solutions?</h2>
+    <p class="cta-p">Wi-Fi, cameras, AV, IT support — everything inside your four walls, handled by one team.</p>
+    <a href="#contact" class="btn-cta-o">Get LAN Solutions →</a>
+  </div>
+  <div class="cta-blue">
+    <h2 class="cta-h">Need internet services?</h2>
+    <p class="cta-p">Business internet, fiber, and network infrastructure — your connection to the world, managed end to end.</p>
+    <a href="#contact" class="btn-cta-b">Get Internet Services →</a>
+  </div>
+</div>
+
+<!-- ── CONTACT ── -->
+<section class="contact" id="contact">
+  <div class="contact-inner">
+    <div>
+      <div class="stag-o">Contact HowdyNET</div>
+      <h2 class="sh-o">Say howdy.<br/><em>We'll come back with a tech joke.</em></h2>
+      <p class="sb-o">Tell us what's going on with your tech. We'll give you a straight answer — even if that means pointing you somewhere else.</p>
+        <div style="margin-top:12px;background:rgba(232,106,26,0.08);border:1px solid rgba(232,106,26,0.2);border-radius:8px;padding:12px 16px;font-size:0.78rem;color:rgba(139,34,0,0.8);font-weight:600;line-height:1.6;">
+          🤠 <strong>Here's the deal:</strong> Send us a howdy and we'll always reply with a real answer <em>and</em> a tech joke. S'pose that's the least we can do.
+        </div>
+      <div class="contact-info">
+        <div class="contact-item">
+          <div class="contact-icon">✉️</div>
+          <div class="contact-item-text"><strong>info@howdynet.io</strong><span>We reply same business day</span></div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-icon">📱</div>
+          <div class="contact-item-text">
+            <strong>(512) 200-4744</strong>
+            <span>Call or text — real humans answer</span>
+          </div>
+        </div>
+        <div class="contact-item">
+          <div class="contact-icon">📍</div>
+          <div class="contact-item-text"><strong>Headquartered in Texas</strong><span>US · Mexico · Canada · Europe</span></div>
+        </div>
+      </div>
+    </div>
+    <form class="contact-form" name="contact" method="POST" action="/api/form">
+      <input type="hidden" name="form-name" value="contact" />
+      <div class="form-title">Schedule a Free Consultation</div>
+      <div class="form-row">
+        <div class="form-field"><label>First Name</label><input type="text" name="first-name" placeholder="First name" required /></div>
+        <div class="form-field"><label>Last Name</label><input type="text" name="last-name" placeholder="Last name" required /></div>
+      </div>
+      <div class="form-field"><label>Business Email</label><input type="email" name="email" placeholder="you@yourbusiness.com" required /></div>
+      <div class="form-field"><label>Phone</label><input type="tel" name="phone" placeholder="(512) 000-0000" /></div>
+      <div class="form-field">
+        <label>What do you need help with?</label>
+        <select name="service">
+          <option value="">Select a service...</option>
+          <optgroup label="🔵 Blue Hat — Internet & WAN">
+            <option>Business Internet Services</option>
+            <option>Fiber & Ethernet Cabling</option>
+            <option>ISP & Vendor Coordination</option>
+            <option>Hardware & Software Procurement</option>
+            <option>Custom Software Development</option>
+          </optgroup>
+          <optgroup label="🟠 Orange Hat — LAN Solutions">
+            <option>Wi-Fi Design & Engineering</option>
+            <option>Security Cameras & Access Control</option>
+            <option>Managed IT & Help Desk</option>
+            <option>Audio / Video Installations</option>
+            <option>AI & Business Automation</option>
+            <option>Vendor Consolidation</option>
+          </optgroup>
+          <optgroup label="📋 Plans">
+            <option>POS Managed ($99/mo)</option>
+            <option>Complete ($199/mo)</option>
+            <option>MSP Basic ($500/mo)</option>
+            <option>MSP Advanced ($1,000/mo)</option>
+          </optgroup>
+          <option>Not sure — let's talk</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Tell us what's going on</label><textarea name="message" placeholder="What's the real story with your tech? The more you tell us, the more useful our first conversation will be."></textarea></div>
+      <Turnstile />
+<button type="submit" class="btn-submit">Send It →</button>
+    </form>
+  </div>
+</section>

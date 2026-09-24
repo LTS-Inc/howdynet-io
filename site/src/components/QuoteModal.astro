@@ -1,0 +1,50 @@
+---
+import Turnstile from "./Turnstile.astro";
+---
+<!-- ── CUSTOM QUOTE MODAL ── -->
+<div class="quote-overlay" id="quote-modal" style="display:none;">
+  <div class="quote-modal">
+    <button class="quote-close" onclick="closeQuoteModal()">×</button>
+    <div class="quote-eyebrow">Transparent Pricing</div>
+    <h2 class="quote-title">Build Your Custom Quote</h2>
+    <p class="quote-sub">Tell us what you need — we'll put together a clear, itemized quote with no hidden fees and no pressure. <strong style="color:var(--flame)">Hardware is passed at our procurement cost</strong> — what we pay is what you pay. Services priced to scope, not to the maximum we can charge.</p>
+    <form class="quote-form" name="custom-quote" method="POST" action="/api/form" onsubmit="submitQuote(event)">
+      <input type="hidden" name="form-name" value="custom-quote"/>
+      <div class="quote-row">
+        <input class="quote-input" type="text" name="first-name" placeholder="First name" required/>
+        <input class="quote-input" type="text" name="last-name" placeholder="Last name" required/>
+      </div>
+      <div class="quote-row">
+        <input class="quote-input" type="email" name="email" placeholder="Business email" required/>
+        <input class="quote-input" type="tel" name="phone" placeholder="Phone / text"/>
+      </div>
+      <input class="quote-input" type="text" name="company" placeholder="Business name"/>
+      <input class="quote-input" type="text" name="locations" placeholder="Number of locations (e.g. 1 office, 3 restaurants)"/>
+      <div class="quote-check-group">
+        <div class="quote-check-label">What services are you interested in?</div>
+        <div class="quote-checks">
+          <label class="quote-check-item"><input type="checkbox" name="services" value="Business Internet"/> Business Internet</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="Wi-Fi Design"/> Wi-Fi Design & Engineering</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="Security Cameras"/> Security Cameras & Access</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="Managed IT"/> Managed IT & Help Desk</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="AV Installations"/> Audio / Video Installations</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="Vendor Consolidation"/> Vendor Consolidation</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="AI Automation"/> AI & Business Automation</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="Full Stack"/> Full HowdyNET Stack</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="LED Displays"/> LED & Display Walls</label>
+          <label class="quote-check-item"><input type="checkbox" name="services" value="Custom App"/> Custom Business App</label>
+        </div>
+      </div>
+      <input class="quote-input" type="text" name="timeline" placeholder="Timeline (e.g. ASAP, next quarter, just exploring)"/>
+      <textarea class="quote-input" name="notes" rows="3" placeholder="Anything else? Current pain points, budget range, specific needs..." style="resize:vertical;"></textarea>
+      <Turnstile />
+<button type="submit" class="quote-submit">Send My Quote Request →</button>
+      <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);text-align:center;">We respond within one business day with a clear, itemized breakdown.</div>
+    </form>
+    <div class="quote-success" id="quote-success">
+      <div style="font-size:2rem;">🤠</div>
+      <h3>Quote request received!</h3>
+      <p>We'll review your needs and send a transparent, itemized quote within one business day. No pressure, no fluff — just honest numbers.</p>
+    </div>
+  </div>
+</div>

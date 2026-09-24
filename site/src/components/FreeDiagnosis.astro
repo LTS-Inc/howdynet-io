@@ -1,0 +1,107 @@
+---
+import Turnstile from "./Turnstile.astro";
+---
+<!-- ── NETWORK QUALITY TESTER ── -->
+<section class="bloat-section" id="free-diagnosis">
+  <div class="bloat-inner">
+    <div class="stag-b">Free Network Diagnostic</div>
+    <h2 class="sh-b">Quality vs. Quantity —<br/><em>your real network score.</em></h2>
+    <p class="sb-b" style="max-width:660px;margin-bottom:0">Your ISP sells you a speed number. We measure what actually matters: latency, jitter, bufferbloat, and consistency — one honest score out of 100.</p>
+    <div class="bloat-card">
+      <div class="b-progress">
+        <div class="bstep active" id="bstep-idle">Ready</div>
+        <div class="bstep" id="bstep-baseline">Baseline</div>
+        <div class="bstep" id="bstep-load">Load Test</div>
+        <div class="bstep" id="bstep-grade">Scoring</div>
+        <div class="bstep" id="bstep-done">Complete</div>
+      </div>
+      <div class="bloat-top">
+        <div>
+          <div class="qs-circle">
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              <circle cx="80" cy="80" r="66" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="10"/>
+              <circle id="qs-ring" cx="80" cy="80" r="66" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="10" stroke-dasharray="415" stroke-dashoffset="415" stroke-linecap="round" style="transition:stroke-dashoffset 1s ease,stroke 0.5s"/>
+            </svg>
+            <div class="qs-inner"><div class="qs-num" id="qs-score">—</div><div class="qs-lbl">Quality Score</div></div>
+          </div>
+          <div class="qs-verdict" id="qs-verdict">Run the test</div>
+        </div>
+        <div class="qs-comps">
+          <div><div class="qsc-head"><span class="qsc-name">Latency</span><span class="qsc-val" id="qsv-lat">—</span><span class="qsc-pts" id="qsp-lat">— /30</span></div><div class="qsc-bar-bg"><div class="qsc-bar" id="qsb-lat"></div></div><div class="qsc-desc" id="qsd-lat">Time for data to travel to a server and back</div></div>
+          <div><div class="qsc-head"><span class="qsc-name">Jitter</span><span class="qsc-val" id="qsv-jit">—</span><span class="qsc-pts" id="qsp-jit">— /20</span></div><div class="qsc-bar-bg"><div class="qsc-bar" id="qsb-jit"></div></div><div class="qsc-desc" id="qsd-jit">Variance between pings — killer for video calls</div></div>
+          <div><div class="qsc-head"><span class="qsc-name">Bufferbloat</span><span class="qsc-val" id="qsv-bloat">—</span><span class="qsc-pts" id="qsp-bloat">— /35</span></div><div class="qsc-bar-bg"><div class="qsc-bar" id="qsb-bloat"></div></div><div class="qsc-desc" id="qsd-bloat">Latency increase under network load</div></div>
+          <div><div class="qsc-head"><span class="qsc-name">Consistency</span><span class="qsc-val" id="qsv-con">—</span><span class="qsc-pts" id="qsp-con">— /15</span></div><div class="qsc-bar-bg"><div class="qsc-bar" id="qsb-con"></div></div><div class="qsc-desc" id="qsd-con">How reliably your latency stays stable</div></div>
+        </div>
+      </div>
+      <div class="bloat-meters">
+        <div class="bm"><div class="bm-lbl">Unloaded Latency</div><div class="bm-val" id="b-baseline">—</div><div class="bm-unit">ms baseline</div></div>
+        <div class="bm"><div class="bm-lbl">Loaded Latency</div><div class="bm-val" id="b-loaded">—</div><div class="bm-unit">ms under load</div></div>
+        <div class="bm"><div class="bm-lbl">Jitter</div><div class="bm-val" id="b-jitter">—</div><div class="bm-unit">ms variance</div></div>
+      </div>
+      <div class="b-benchmark" id="b-benchmark">
+        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.25);margin-bottom:10px;">How You Compare</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;">
+          <div><div style="font-size:1.3rem;font-weight:900;" id="b-your-score">—</div><div style="font-size:0.6rem;color:rgba(255,255,255,0.25);font-weight:600;margin-top:2px;">Your Score</div></div>
+          <div><div style="font-size:1.3rem;font-weight:900;color:rgba(255,255,255,0.2);">~45</div><div style="font-size:0.6rem;color:rgba(255,255,255,0.25);font-weight:600;margin-top:2px;">Avg Business</div></div>
+          <div><div style="font-size:1.3rem;font-weight:900;color:var(--sky);">85+</div><div style="font-size:0.6rem;color:rgba(255,255,255,0.25);font-weight:600;margin-top:2px;">HowdyNET Managed</div></div>
+        </div>
+      </div>
+      <div class="b-explain" id="b-explain"></div>
+      <div class="b-isp-row">
+        <div style="flex-shrink:0;">
+          <div class="b-isp-lbl">What speed did your ISP sell you?</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" id="isp-speed" class="b-isp-input" placeholder="e.g. 500" min="1" max="10000" oninput="updateEffRate()"/>
+            <span style="font-size:0.82rem;font-weight:700;color:rgba(255,255,255,0.4);">Mbps</span>
+          </div>
+        </div>
+        <div style="flex:1;min-width:180px;">
+          <div class="b-isp-lbl">Effective Rate After Quality Score</div>
+          <div style="display:flex;align-items:baseline;gap:8px;">
+            <span class="b-eff-num" id="b-eff-num">—</span>
+            <span style="font-size:0.78rem;font-weight:700;color:rgba(255,255,255,0.25);">Mbps effective</span>
+          </div>
+          <div class="b-eff-desc" id="b-eff-desc"></div>
+        </div>
+      </div>
+      <div class="b-what"><strong>Quality vs. Quantity:</strong> ISPs sell speed numbers. HowdyNET manages for quality — how your connection performs under real conditions. A 1Gbps link with severe bufferbloat will drop calls. A 100Mbps link with a 90 quality score feels buttery smooth. Quality wins every time.</div>
+      <div class="b-actions">
+        <button class="b-run" id="b-run-btn" onclick="runBloatTest()">🔵 Run Network Quality Test</button>
+        <a href="#contact" class="b-contact" id="b-contact-btn">🟠 Get HowdyNET to Fix This →</a>
+      </div>
+      <div class="b-status" id="b-status">Runs from your browser · no install needed · ~20 seconds</div>
+      <div id="b-next-step" style="display:none;margin-top:14px;background:rgba(232,106,26,0.08);border:1px solid rgba(232,106,26,0.2);border-radius:10px;padding:14px 18px;">
+        <div style="font-size:0.6rem;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#E86A1A;margin-bottom:6px;">Best Next Step</div>
+        <div class="next-step-msg" style="font-size:0.82rem;font-weight:600;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:10px;"></div>
+        <a href="#contact" style="font-family:Nunito,sans-serif;font-size:0.8rem;font-weight:800;background:#E86A1A;color:#fff;padding:9px 18px;border-radius:7px;text-decoration:none;display:inline-block;">Say Howdy &#x2192;</a>
+      </div>
+      <div class="b-send" id="b-send">
+        <div style="font-size:0.62rem;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:var(--sky);margin-bottom:6px;">Free Tech Evaluation</div>
+        <div style="font-size:1.05rem;font-weight:900;color:var(--ice);margin-bottom:6px;">Send your results to a HowdyNET tech.</div>
+        <div style="font-size:0.8rem;color:rgba(238,247,255,0.45);margin-bottom:18px;line-height:1.6;">No cost, no commitment. A real network engineer will review your score and give you a plain-English breakdown.</div>
+        <form class="b-send-form" name="network-results" method="POST" action="/api/form" onsubmit="submitBloatForm(event)">
+          <input type="hidden" name="form-name" value="network-results"/>
+          <input type="hidden" name="quality-score" id="rf-score"/><input type="hidden" name="latency" id="rf-lat"/>
+          <input type="hidden" name="jitter" id="rf-jit"/><input type="hidden" name="bufferbloat" id="rf-bloat"/>
+          <input type="hidden" name="isp-speed" id="rf-ispeed"/><input type="hidden" name="effective-rate" id="rf-eff"/>
+          <input type="hidden" name="device" id="rf-device"/><input type="hidden" name="os-browser" id="rf-osbr"/>
+          <input type="hidden" name="connection-type" id="rf-conn"/><input type="hidden" name="screen" id="rf-screen"/>
+          <input type="hidden" name="location" id="rf-loc"/><input type="hidden" name="isp-detected" id="rf-isp"/>
+          <input type="hidden" name="timestamp" id="rf-time"/>
+          <div class="b-send-row">
+            <input class="b-send-input" type="text" name="first-name" placeholder="First name" required/>
+            <input class="b-send-input" type="text" name="last-name" placeholder="Last name" required/>
+          </div>
+          <div class="b-send-row">
+            <input class="b-send-input" type="email" name="email" placeholder="Business email" required/>
+            <input class="b-send-input" type="tel" name="phone" placeholder="Phone (optional)"/>
+          </div>
+          <input class="b-send-input" type="text" name="company" placeholder="Company (optional)"/>
+          <Turnstile />
+<button type="submit" class="b-send-btn">Send My Results for Free Evaluation →</button>
+        </form>
+        <div class="b-send-ok" id="b-send-ok"><div style="font-size:1.5rem;margin-bottom:8px;">🤠</div><div style="font-size:1rem;font-weight:900;color:var(--ice);">Results sent!</div><div style="font-size:0.8rem;color:rgba(238,247,255,0.45);margin-top:4px;">A HowdyNET tech will reach out within one business day.</div></div>
+      </div>
+    </div>
+  </div>
+</section>

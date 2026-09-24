@@ -1,0 +1,67 @@
+name: Site
+
+on:
+  pull_request:
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+
+concurrency:
+  group: site-howdynet-www
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: site
+
+env:
+  # Public sitekey; from `terraform output turnstile_sitekey`. Falls back to Cloudflare's test key on PRs.
+  PUBLIC_TURNSTILE_SITEKEY: ${{ vars.TURNSTILE_SITEKEY || '1x00000000000000000000AA' }}
+
+jobs:
+  build:
+    name: Check and build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: site/.node-version
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate Worker types
+        run: npx wrangler types
+
+      - name: Type check
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      - name: Size gate (whole dist under 2 MB; the old page alone was 4 MB)
+        run: test "$(du -sk dist | cut -f1)" -lt 2048
+
+      - name: Deploy to Cloudflare Workers
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: deploy
+          secrets: |
+            TURNSTILE_SECRET
+        env:
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
