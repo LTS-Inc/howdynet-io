@@ -55,3 +55,9 @@ variable "enable_extra_headers" {
   type        = bool
   default     = false
 }
+
+variable "enforce_2fa" {
+  description = "Manage the account and enforce 2FA for all members. Only set true once every member (including you) has 2FA enabled; `howdy` sets it automatically."
+  type        = bool
+  default     = false
+}

@@ -31,3 +31,7 @@ site/.env
 site/.env.*
 !site/.env.example
 site/worker-configuration.d.ts
+
+# howdy CLI
+site/wrangler.preview.jsonc
+.howdy.json

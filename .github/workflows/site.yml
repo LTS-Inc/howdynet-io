@@ -54,7 +54,9 @@ jobs:
         run: test "$(du -sk dist | cut -f1)" -lt 2048
 
       - name: Deploy to Cloudflare Workers
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        # WWW_CUTOVER is set by `howdy up` once the custom domain is bound; before that a deploy
+        # with routes would fail (hostname still owned by Pages).
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.WWW_CUTOVER == 'true'
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}

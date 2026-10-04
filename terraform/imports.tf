@@ -16,6 +16,7 @@ import {
 }
 
 import {
-  to = cloudflare_account.this
-  id = var.account_id
+  for_each = var.enforce_2fa ? toset(["this"]) : toset([])
+  to       = cloudflare_account.this[0]
+  id       = var.account_id
 }

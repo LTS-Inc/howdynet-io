@@ -1,0 +1,35 @@
+#!/bin/sh
+# howdy — bootstrap wrapper. Installs the toolchain on macOS (Homebrew), then runs bin/howdy.mjs.
+# Usage: ./howdy up | setup | status | infra | site | cutover | github | selftest [--dry-run] [--yes]
+set -eu
+cd "$(dirname "$0")"
+
+node_ok() {
+  command -v node >/dev/null 2>&1 || return 1
+  v=$(node -p 'process.versions.node' 2>/dev/null) || return 1
+  major=${v%%.*}; rest=${v#*.}; minor=${rest%%.*}
+  [ "$major" -gt 22 ] || { [ "$major" -eq 22 ] && [ "$minor" -ge 12 ]; }
+}
+
+if [ "$(uname -s)" = "Darwin" ]; then
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "==> Installing Homebrew"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    if [ -x /opt/homebrew/bin/brew ]; then eval "$(/opt/homebrew/bin/brew shellenv)"; fi
+  fi
+  if ! node_ok; then
+    echo "==> Installing node@22"
+    brew list node@22 >/dev/null 2>&1 || brew install node@22
+  fi
+  if brew list node@22 >/dev/null 2>&1; then PATH="$(brew --prefix node@22)/bin:$PATH"; export PATH; fi
+  if ! command -v terraform >/dev/null 2>&1; then
+    echo "==> Installing terraform (hashicorp/tap)"
+    brew tap hashicorp/tap >/dev/null
+    brew install hashicorp/tap/terraform
+  fi
+else
+  node_ok || { echo "node >= 22.12 is required"; exit 1; }
+  command -v terraform >/dev/null 2>&1 || { echo "terraform is required (https://developer.hashicorp.com/terraform/install)"; exit 1; }
+fi
+
+exec node bin/howdy.mjs "$@"

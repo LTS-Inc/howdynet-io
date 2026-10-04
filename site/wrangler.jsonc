@@ -9,15 +9,16 @@
     "binding": "ASSETS",
     "not_found_handling": "404-page"
   },
-  // Cutover (see README): set workers_dev to false and uncomment routes once the
-  // Pages custom domain and the old `www` DNS record have been removed.
+  // workers.dev stays on for previews; `howdy site` deploys a routes-less copy of this
+  // config there before `howdy cutover` binds the custom domain.
   "workers_dev": true,
-  // "routes": [{ "pattern": "www.howdynet.io", "custom_domain": true }],
+  "preview_urls": true,
+  "routes": [{ "pattern": "www.howdynet.io", "custom_domain": true }],
   "send_email": [
     { "name": "EMAIL", "destination_address": "support@howdynet.io" }
   ],
   "kv_namespaces": [
-    // Create with: npx wrangler kv namespace create FORM_SUBMISSIONS
+    // `howdy site` creates the namespace and writes its id here; commit the result.
     { "binding": "FORM_SUBMISSIONS", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
   ],
   "observability": { "enabled": true }
