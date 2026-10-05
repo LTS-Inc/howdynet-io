@@ -62,7 +62,8 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: site
-          command: deploy
+          # Deploy from the adapter-generated config (dist/server/wrangler.json), not the source jsonc.
+          command: deploy -c dist/server/wrangler.json
           secrets: |
             TURNSTILE_SECRET
         env:

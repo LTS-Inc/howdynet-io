@@ -237,11 +237,17 @@ export function patchKvId(jsonc, id) {
   return jsonc.replace(re, `$1${id}$2`);
 }
 
-export function previewConfig(jsonc) {
-  // Same config without the custom-domain route, so a deploy touches only workers.dev.
-  const out = jsonc.replace(/^[ \t]*"routes":\s*\[[^\n]*\],?[ \t]*\n/m, "");
-  if (out === jsonc) throw new Error("routes line not found in wrangler.jsonc");
-  return out;
+// The adapter writes a fully resolved, deployable config at build time (main: entry.mjs,
+// assets ../client, all bindings, routes). Deploys always use that file, never the source jsonc.
+const GENERATED_CONFIG = path.join(SITE, "dist", "server", "wrangler.json");
+const PREVIEW_CONFIG = path.join(SITE, "dist", "server", "wrangler.preview.json");
+
+export function previewConfig(generatedJson) {
+  // Same deployable config without the custom-domain route, so a deploy touches only workers.dev.
+  const cfg = JSON.parse(generatedJson);
+  if (!cfg.main || !cfg.assets?.directory) throw new Error("not a generated wrangler config (missing main/assets)");
+  delete cfg.routes;
+  return JSON.stringify(cfg, null, 2) + "\n";
 }
 
 export function readKvId(jsonc) {
@@ -609,10 +615,11 @@ async function smoke(base) {
 
 async function stepPreviewDeploy(d) {
   step("Preview deploy to workers.dev (no DNS changes)");
-  const src = path.join(SITE, "wrangler.jsonc");
-  const preview = path.join(SITE, "wrangler.preview.jsonc");
-  if (!flags.dryRun) fs.writeFileSync(preview, previewConfig(fs.readFileSync(src, "utf8")));
-  const r = wrangler(["deploy", "-c", "wrangler.preview.jsonc"]);
+  if (!flags.dryRun) {
+    if (!fs.existsSync(GENERATED_CONFIG)) die("site/dist/server/wrangler.json missing: run the build first (./howdy site)");
+    fs.writeFileSync(PREVIEW_CONFIG, previewConfig(fs.readFileSync(GENERATED_CONFIG, "utf8")));
+  }
+  const r = wrangler(["deploy", "-c", "dist/server/wrangler.preview.json"]);
   if (r.status !== 0) die("preview deploy failed");
   const sub = await cfTry("GET", `/accounts/${d.accountId}/workers/subdomain`);
   const base = sub?.subdomain ? `https://${WORKER}.${sub.subdomain}.workers.dev` : d.workersDev;
@@ -640,7 +647,8 @@ async function stepCutover(d) {
     await cf("DELETE", `/zones/${d.zoneId}/dns_records/${r.id}`);
     ok(`deleted DNS ${r.type} ${WWW}`);
   }
-  const dep = wrangler(["deploy"]);
+  if (!flags.dryRun && !fs.existsSync(GENERATED_CONFIG)) die("site/dist/server/wrangler.json missing: run ./howdy site first");
+  const dep = wrangler(["deploy", "-c", "dist/server/wrangler.json"]);
   if (dep.status !== 0) die(`deploy with custom domain failed. Re-run ./howdy cutover (the www record is gone; the Worker will claim it).`);
   ok("deployed with custom domain");
   if (flags.dryRun) return true;
@@ -775,11 +783,12 @@ function cmdSelftest() {
   eq(h.Authorization.split("Signature=")[1], REF_SIG, "sigv4: signature matches reference");
   const jsonc = fs.readFileSync(path.join(SITE, "wrangler.jsonc"), "utf8");
   eq(readKvId(patchKvId(jsonc, "abc123")), "abc123", "kv: patch + read id");
-  const prev = previewConfig(jsonc);
-  eq(prev.includes('"routes"'), false, "preview: routes removed");
-  eq(prev.includes('"custom_domain"'), false, "preview: custom_domain removed");
-  eq(prev.includes('"send_email"') && prev.includes('"kv_namespaces"') && prev.includes('"assets"'), true, "preview: other bindings kept");
-  eq(jsonc.split("\n").length - prev.split("\n").length, 1, "preview: exactly one line removed");
+  const generated = JSON.stringify({ name: WORKER, main: "entry.mjs", assets: { directory: "../client", binding: "ASSETS" },
+    routes: [{ pattern: WWW, custom_domain: true }], workers_dev: true, kv_namespaces: [{ binding: "FORM_SUBMISSIONS", id: "x" }], send_email: [{ name: "EMAIL" }] });
+  const prev = JSON.parse(previewConfig(generated));
+  eq("routes" in prev, false, "preview: routes removed");
+  eq(prev.main === "entry.mjs" && prev.assets.directory === "../client" && prev.kv_namespaces.length === 1 && prev.send_email.length === 1 && prev.workers_dev === true, true, "preview: everything else kept");
+  let threw = false; try { previewConfig('{"name":"x"}'); } catch { threw = true; } eq(threw, true, "preview: rejects a non-generated config");
 }
 
 function help() {

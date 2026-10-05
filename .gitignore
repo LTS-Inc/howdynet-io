@@ -33,7 +33,6 @@ site/.env.*
 site/worker-configuration.d.ts
 
 # howdy CLI
-site/wrangler.preview.jsonc
 .howdy.json
 
 # vendored toolchain (./howdy)

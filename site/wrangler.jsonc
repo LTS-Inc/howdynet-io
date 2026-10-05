@@ -9,8 +9,9 @@
     "binding": "ASSETS",
     "not_found_handling": "404-page"
   },
-  // workers.dev stays on for previews; `howdy site` deploys a routes-less copy of this
-  // config there before `howdy cutover` binds the custom domain.
+  // This is the SOURCE config. `astro build` resolves it into dist/server/wrangler.json, which is
+  // what every deploy uses (`wrangler deploy -c dist/server/wrangler.json`). `howdy site` deploys
+  // a routes-less copy of that generated file to workers.dev before `howdy cutover` binds the domain.
   "workers_dev": true,
   "preview_urls": true,
   "routes": [{ "pattern": "www.howdynet.io", "custom_domain": true }],

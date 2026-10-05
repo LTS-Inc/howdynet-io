@@ -145,7 +145,7 @@ cp .env.example .env            # PUBLIC_TURNSTILE_SITEKEY (test key by default)
 cp .dev.vars.example .dev.vars  # TURNSTILE_SECRET (test secret by default)
 npx wrangler types              # generates worker-configuration.d.ts (gitignored)
 npm run check && npm run build
-npm run preview                 # wrangler dev on the production bundle; email sends are simulated
+npm run preview                 # wrangler dev on the built bundle (dist/server/wrangler.json); email sends are simulated
 ```
 
 Form endpoint smoke test (Astro's CSRF check requires a same-origin `Origin` header):
@@ -174,13 +174,15 @@ npx wrangler kv key list --binding FORM_SUBMISSIONS --local
 
 ### Cutover of www.howdynet.io from Pages to the Worker
 
-1. Deploy a preview without the custom domain: copy `wrangler.jsonc` to `wrangler.preview.jsonc`,
-   delete the `routes` line, `npx wrangler deploy -c wrangler.preview.jsonc`. Check
+1. Build (`npm run build`). Deploys always use the generated `dist/server/wrangler.json`, never the
+   source `wrangler.jsonc`. For a preview without the custom domain, copy that generated file to
+   `dist/server/wrangler.preview.json`, delete its `routes` key, and run
+   `npx wrangler deploy -c dist/server/wrangler.preview.json`. Check
    `howdynet-www.<account>.workers.dev` renders (Turnstile will not render there because the
    widget is limited to howdynet.io hostnames).
 2. Dashboard: Workers & Pages > the Pages project > Custom domains > remove `www.howdynet.io`;
    DNS > delete the `www` record. The Worker custom domain refuses to overwrite an existing record.
-3. `npx wrangler deploy` (the committed config carries the custom-domain route). Cloudflare creates
+3. `npx wrangler deploy -c dist/server/wrangler.json` (the config carries the custom-domain route). Cloudflare creates
    the proxied `www` record and certificate; expect seconds to a couple of minutes of downtime
    between steps 2 and 3. Then set the GitHub variable `WWW_CUTOVER=true` so CI deploys on main.
 4. Verify:

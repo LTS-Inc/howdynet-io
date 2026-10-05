@@ -7,8 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "check": "astro check",
-    "preview": "wrangler dev",
-    "deploy": "astro build && wrangler deploy",
+    "preview": "wrangler dev -c dist/server/wrangler.json",
+    "deploy": "astro build && wrangler deploy -c dist/server/wrangler.json",
     "types": "wrangler types"
   },
   "dependencies": {
