@@ -47,7 +47,8 @@ It prints these as TODOs and lists them at the end:
 - **Onboard `mail.howdynet.io` for Email Sending** (Compute > Email Service > Email Sending >
   Onboard domain, pick the subdomain). Until then, form submissions are stored in KV but not
   emailed. Acknowledge with `./howdy up --email-sending-done`.
-- **Commit `site/wrangler.jsonc`** after the first run (it now holds the KV namespace id).
+- **Commit `site/wrangler.jsonc`** if `howdy` rewrites the KV namespace id (only happens when the
+  namespace is recreated; the current id is already committed).
 
 If the token is missing a permission, the probe names it; edit the token in the dashboard
 (My Profile > API Tokens > Edit) rather than creating a new one, then re-run.

@@ -577,7 +577,7 @@ async function stepKv(d) {
   const jsonc = fs.readFileSync(file, "utf8");
   if (readKvId(jsonc) === id) skip("wrangler.jsonc already has the id");
   else if (flags.dryRun) dry(`write KV id into site/wrangler.jsonc`);
-  else { fs.writeFileSync(file, patchKvId(jsonc, id)); ok("wrote KV id into site/wrangler.jsonc (commit this)"); }
+  else { fs.writeFileSync(file, patchKvId(jsonc, id)); ok("wrote KV id into site/wrangler.jsonc; commit it before your next git pull (git add site/wrangler.jsonc && git commit -m \"Set KV namespace id\")"); }
   return id;
 }
 

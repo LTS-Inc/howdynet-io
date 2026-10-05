@@ -20,7 +20,7 @@
   ],
   "kv_namespaces": [
     // `howdy site` creates the namespace and writes its id here; commit the result.
-    { "binding": "FORM_SUBMISSIONS", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+    { "binding": "FORM_SUBMISSIONS", "id": "2d6d6c3b8bb64fd4b154e2a78d65a6dd" }
   ],
   "observability": { "enabled": true }
 }
