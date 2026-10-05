@@ -281,7 +281,7 @@ async function stepToken() {
   step("Cloudflare API token");
   if (TOKEN) {
     const v = await cf("GET", "/user/tokens/verify", undefined, { raw: true });
-    if (v.status === 200 && v.json.result?.status === "active") { ok(`token ${redact(TOKEN)} active (${process.env.CLOUDFLARE_API_TOKEN ? "from env" : "from keychain"})`); return; }
+    if (v.status === 200 && v.json.result?.status === "active") { ok(`token ${redact(TOKEN)} active (${process.env.CLOUDFLARE_API_TOKEN ? "from env" : "from keychain"}); replace it with ./howdy setup`); return; }
     warn("stored token is not active; asking for a new one");
   }
   log(`
@@ -311,20 +311,21 @@ async function probeToken() {
   const acct = isAccountToken();
   const checks = [
     // [permission name, path, required?]
-    ["User Details: Read (shows who runs this; optional)", "/user", false],
-    [acct ? "Account API Tokens: Edit (R2 state creds)" : "API Tokens: Edit (R2 state creds)", acct ? `/accounts/${accountId}/tokens/permission_groups` : "/user/tokens/permission_groups", !flags.localState],
-    ["Account Settings: Read/Edit", `/accounts/${accountId}/members?per_page=1`, true],
-    ["Zone Settings: Edit", `/zones/${zoneId}/settings/security_header`, true],
-    ["DNS: Edit", `/zones/${zoneId}/dns_records?per_page=1`, true],
-    ["Bot Management: Edit", `/zones/${zoneId}/bot_management`, true],
-    ["Access: Apps and Policies: Edit", `/accounts/${accountId}/access/apps?per_page=1`, true],
-    ["Turnstile: Edit", `/accounts/${accountId}/challenges/widgets?per_page=1`, true],
-    ["Workers Scripts: Edit", `/accounts/${accountId}/workers/scripts`, true],
-    ["Workers KV Storage: Edit", `/accounts/${accountId}/storage/kv/namespaces?per_page=1`, true],
-    ["Workers R2 Storage: Edit", `/accounts/${accountId}/r2/buckets?per_page=1`, !flags.localState],
-    ["Cloudflare Pages: Edit", `/accounts/${accountId}/pages/projects?per_page=1`, true],
-    ["Email Routing Addresses: Edit", `/accounts/${accountId}/email/routing/addresses?per_page=1`, true],
-    ["SSL and Certificates: Edit", `/zones/${zoneId}/ssl/certificate_packs?per_page=1`, true],
+    // Names mirror the token editor: Group > Permission > Level.
+    ["User > User Details > Read (shows who runs this; optional)", "/user", false],
+    [acct ? "Account > Account API Tokens > Edit (R2 state creds)" : "User > API Tokens > Edit (R2 state creds)", acct ? `/accounts/${accountId}/tokens/permission_groups` : "/user/tokens/permission_groups", !flags.localState],
+    ["Account > Account Settings > Edit", `/accounts/${accountId}/members?per_page=1`, true],
+    ["Zone > Zone Settings > Edit", `/zones/${zoneId}/settings/security_header`, true],
+    ["Zone > DNS > Edit", `/zones/${zoneId}/dns_records?per_page=1`, true],
+    ["Zone > Bot Management > Edit", `/zones/${zoneId}/bot_management`, true],
+    ["Account > Access: Apps and Policies > Edit", `/accounts/${accountId}/access/apps?per_page=1`, true],
+    ["Account > Turnstile > Edit", `/accounts/${accountId}/challenges/widgets?per_page=1`, true],
+    ["Account > Workers Scripts > Edit", `/accounts/${accountId}/workers/scripts`, true],
+    ["Account > Workers KV Storage > Edit", `/accounts/${accountId}/storage/kv/namespaces?per_page=1`, true],
+    ["Account > Workers R2 Storage > Edit", `/accounts/${accountId}/r2/buckets?per_page=1`, !flags.localState],
+    ["Account > Cloudflare Pages > Edit", `/accounts/${accountId}/pages/projects?per_page=1`, true],
+    ["Account > Email Routing Addresses > Edit", `/accounts/${accountId}/email/routing/addresses?per_page=1`, true],
+    ["Zone > SSL and Certificates > Edit", `/zones/${zoneId}/ssl/certificate_packs?per_page=1`, true],
   ];
   if (acct) checks.shift(); // account-owned tokens have no /user
   const missing = [];
@@ -336,7 +337,11 @@ async function probeToken() {
   if (missing.length) {
     log("");
     log(`  The token is missing: ${c("1", missing.join(", "))}`);
-    log("  Fix: dash.cloudflare.com > My Profile > API Tokens > (this token) > Edit > add the permissions above > Save. No need to recreate it. Then re-run.");
+    log("  Fix (no need to recreate the token): dash.cloudflare.com > My Profile > API Tokens > (this token) > Edit.");
+    log("  Under Permissions click \"+ Add more\"; the three dropdowns are Group (User / Account / Zone), Permission, Level.");
+    log("  Set exactly the Group > Permission > Level shown above, then \"Continue to summary\" and \"Update token\". Re-run.");
+    if (missing.length === 1 && missing[0].includes("API Tokens"))
+      log(`  Alternative: ./howdy up --local-state keeps Terraform state on disk and does not need that permission.`);
     die("token permissions incomplete");
   }
 }
