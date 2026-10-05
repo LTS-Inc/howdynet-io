@@ -1,8 +1,31 @@
 #!/bin/sh
-# howdy — bootstrap wrapper. Installs the toolchain on macOS (Homebrew), then runs bin/howdy.mjs.
+# howdy — bootstrap wrapper. Fetches a pinned Node and Terraform into ./.tools (no Homebrew, no
+# Xcode Command Line Tools, nothing installed system-wide), then runs bin/howdy.mjs.
 # Usage: ./howdy up | setup | status | infra | site | cutover | github | selftest [--dry-run] [--yes]
+# Remove everything it downloaded with: rm -rf .tools
 set -eu
 cd "$(dirname "$0")"
+
+NODE_VERSION=22.23.3        # LTS; verified against https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt
+TERRAFORM_VERSION=1.16.4    # verified against https://releases.hashicorp.com/terraform/$TERRAFORM_VERSION/terraform_${TERRAFORM_VERSION}_SHA256SUMS
+TOOLS="$PWD/.tools"
+
+os=$(uname -s); arch=$(uname -m)
+case "$os" in Darwin) node_os=darwin; tf_os=darwin ;; Linux) node_os=linux; tf_os=linux ;; *) echo "unsupported OS: $os" >&2; exit 1 ;; esac
+case "$arch" in arm64|aarch64) node_arch=arm64; tf_arch=arm64 ;; x86_64|amd64) node_arch=x64; tf_arch=amd64 ;; *) echo "unsupported arch: $arch" >&2; exit 1 ;; esac
+
+sha256() { if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1; else sha256sum "$1" | cut -d' ' -f1; fi; }
+
+# fetch URL FILE SUMS_URL ASSET_NAME: download and verify against the vendor's published sums file
+fetch() {
+  url=$1; out=$2; sums=$3; name=$4
+  echo "==> Downloading $name"
+  curl -fsSL --retry 3 -o "$out" "$url"
+  want=$(curl -fsSL --retry 3 "$sums" | grep " $name\$" | head -n1 | cut -d' ' -f1)
+  [ -n "$want" ] || { echo "no checksum for $name in $sums" >&2; exit 1; }
+  got=$(sha256 "$out")
+  [ "$got" = "$want" ] || { echo "checksum mismatch for $name: got $got want $want" >&2; rm -f "$out"; exit 1; }
+}
 
 node_ok() {
   command -v node >/dev/null 2>&1 || return 1
@@ -10,26 +33,41 @@ node_ok() {
   major=${v%%.*}; rest=${v#*.}; minor=${rest%%.*}
   [ "$major" -gt 22 ] || { [ "$major" -eq 22 ] && [ "$minor" -ge 12 ]; }
 }
+terraform_ok() {
+  command -v terraform >/dev/null 2>&1 || return 1
+  v=$(terraform version 2>/dev/null | sed -n 's/^Terraform v\([0-9.]*\).*/\1/p') || return 1
+  [ -n "$v" ] || return 1
+  major=${v%%.*}; rest=${v#*.}; minor=${rest%%.*}
+  [ "$major" -gt 1 ] || { [ "$major" -eq 1 ] && [ "$minor" -ge 10 ]; }
+}
 
-if [ "$(uname -s)" = "Darwin" ]; then
-  if ! command -v brew >/dev/null 2>&1; then
-    echo "==> Installing Homebrew"
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    if [ -x /opt/homebrew/bin/brew ]; then eval "$(/opt/homebrew/bin/brew shellenv)"; fi
-  fi
-  if ! node_ok; then
-    echo "==> Installing node@22"
-    brew list node@22 >/dev/null 2>&1 || brew install node@22
-  fi
-  if brew list node@22 >/dev/null 2>&1; then PATH="$(brew --prefix node@22)/bin:$PATH"; export PATH; fi
-  if ! command -v terraform >/dev/null 2>&1; then
-    echo "==> Installing terraform (hashicorp/tap)"
-    brew tap hashicorp/tap >/dev/null
-    brew install hashicorp/tap/terraform
-  fi
-else
-  node_ok || { echo "node >= 22.12 is required"; exit 1; }
-  command -v terraform >/dev/null 2>&1 || { echo "terraform is required (https://developer.hashicorp.com/terraform/install)"; exit 1; }
+# Prefer already-vendored tools, then tools on PATH, then download.
+[ -d "$TOOLS/node-v$NODE_VERSION/bin" ] && PATH="$TOOLS/node-v$NODE_VERSION/bin:$PATH"
+[ -x "$TOOLS/bin/terraform" ] && PATH="$TOOLS/bin:$PATH"
+export PATH
+
+if ! node_ok; then
+  name="node-v$NODE_VERSION-$node_os-$node_arch.tar.gz"
+  mkdir -p "$TOOLS"
+  fetch "https://nodejs.org/dist/v$NODE_VERSION/$name" "$TOOLS/$name" "https://nodejs.org/dist/v$NODE_VERSION/SHASUMS256.txt" "$name"
+  rm -rf "$TOOLS/node-v$NODE_VERSION"
+  mkdir -p "$TOOLS/node-v$NODE_VERSION"
+  tar -xzf "$TOOLS/$name" -C "$TOOLS/node-v$NODE_VERSION" --strip-components=1
+  rm -f "$TOOLS/$name"
+  PATH="$TOOLS/node-v$NODE_VERSION/bin:$PATH"; export PATH
+  node_ok || { echo "node install failed" >&2; exit 1; }
+fi
+
+if ! terraform_ok; then
+  name="terraform_${TERRAFORM_VERSION}_${tf_os}_${tf_arch}.zip"
+  mkdir -p "$TOOLS/bin"
+  fetch "https://releases.hashicorp.com/terraform/$TERRAFORM_VERSION/$name" "$TOOLS/$name" \
+        "https://releases.hashicorp.com/terraform/$TERRAFORM_VERSION/terraform_${TERRAFORM_VERSION}_SHA256SUMS" "$name"
+  unzip -oq "$TOOLS/$name" terraform -d "$TOOLS/bin"
+  chmod +x "$TOOLS/bin/terraform"
+  rm -f "$TOOLS/$name"
+  PATH="$TOOLS/bin:$PATH"; export PATH
+  terraform_ok || { echo "terraform install failed" >&2; exit 1; }
 fi
 
 exec node bin/howdy.mjs "$@"

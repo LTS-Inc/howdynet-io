@@ -17,7 +17,8 @@ git clone git@github.com:LTS-Inc/howdynet-io.git && cd howdynet-io
 
 That is the whole install. On first run it:
 
-1. Installs Homebrew (if missing), `node@22` and `terraform`, and the site's npm packages.
+1. Fetches a pinned Node and Terraform into `.tools/` (checksum-verified official releases; no
+   Homebrew, no Xcode tools, nothing installed system-wide) and the site's npm packages.
 2. Asks you once for a Cloudflare API token (it prints the link and the permission checklist),
    verifies it, and stores it in your Keychain.
 3. Finds your account and zone, creates the R2 bucket and credentials for Terraform state, and
@@ -31,7 +32,8 @@ That is the whole install. On first run it:
    until `https://www.howdynet.io` serves from the Worker. Expected gap: seconds to about two minutes.
 7. Sets the GitHub Actions secrets and variables if `gh` is installed, otherwise prints them.
 
-Every step is idempotent: re-run `./howdy up` any time; it skips what already exists.
+Every step is idempotent: re-run `./howdy up` any time; it skips what already exists. To remove
+the downloaded tools: `rm -rf .tools`.
 Preview with `./howdy up --dry-run`, skip prompts with `--yes`, see the current state with
 `./howdy status`.
 

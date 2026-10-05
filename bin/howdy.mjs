@@ -253,9 +253,9 @@ function printStatus(d) {
 async function stepToolchain() {
   step("Toolchain");
   const node = process.versions.node.split(".").map(Number);
-  if (node[0] < 22 || (node[0] === 22 && node[1] < 12)) die(`Node >= 22.12 required (have ${process.versions.node}). Run ./howdy (the wrapper installs node@22).`);
+  if (node[0] < 22 || (node[0] === 22 && node[1] < 12)) die(`Node >= 22.12 required (have ${process.versions.node}). Run ./howdy instead (the wrapper fetches a pinned Node into .tools).`);
   ok(`node ${process.versions.node}`);
-  if (!has("terraform")) die("terraform not found. Run ./howdy (the wrapper installs hashicorp/tap/terraform).");
+  if (!has("terraform")) die("terraform not found. Run ./howdy instead (the wrapper fetches a pinned Terraform into .tools).");
   ok(run("terraform", ["version"], { capture: true, mutates: false, quiet: true }).stdout.split("\n")[0]);
   if (!fs.existsSync(path.join(SITE, "node_modules", ".bin", "wrangler"))) {
     run("npm", ["ci", "--no-audit", "--no-fund"], { cwd: SITE });
