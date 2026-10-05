@@ -158,6 +158,18 @@ async function ask(q) {
   rl.close();
   return a;
 }
+async function askHidden(q) {
+  // Echo muted: the secret never appears on screen or in terminal scrollback.
+  const muted = new (await import("node:stream")).Writable({ write(_c, _e, cb) { cb(); } });
+  const rl = readline.createInterface({ input: process.stdin, output: muted, terminal: true });
+  process.stdout.write(q);
+  const a = (await rl.question("")).trim();
+  rl.close();
+  process.stdout.write("\n");
+  return a;
+}
+const redact = (t) => (t ? `${t.slice(0, 5)}…${t.slice(-4)}` : "");
+const isAccountToken = () => (TOKEN ?? "").startsWith("cfat_");
 
 // ---------------------------------------------------------------------------------- pure helpers (covered by selftest)
 export function buildDmarc(existing) {
@@ -196,9 +208,8 @@ async function discover() {
   const d = {};
   const verify = await cf("GET", "/user/tokens/verify");
   d.tokenStatus = verify.status;
-  const user = await cf("GET", "/user");
-  d.email = user.email;
-  d.user2fa = !!user.two_factor_authentication_enabled;
+  const user = isAccountToken() ? null : await cfTry("GET", "/user");
+  d.email = user?.email ?? (isAccountToken() ? "account-owned token" : "unknown (token lacks User Details: Read)");
   const accounts = await cf("GET", "/accounts?per_page=50");
   const zones = await cf("GET", `/zones?name=${ZONE}`);
   if (!zones.length) die(`zone ${ZONE} not visible to this token`);
@@ -207,6 +218,10 @@ async function discover() {
   const acct = await cf("GET", `/accounts/${d.accountId}`);
   d.accountName = acct.name;
   d.enforce2faNow = !!acct.settings?.enforce_twofactor;
+  const members = (await cfTry("GET", `/accounts/${d.accountId}/members?per_page=100`)) ?? [];
+  d.members = members.filter((m) => m.status === "accepted").map((m) => ({ email: m.user?.email ?? m.email, twofa: !!m.user?.two_factor_authentication_enabled }));
+  d.membersWithout2fa = d.members.filter((m) => !m.twofa).map((m) => m.email);
+  d.all2fa = d.members.length > 0 && d.membersWithout2fa.length === 0;
   const dmarc = await cf("GET", `/zones/${d.zoneId}/dns_records?type=TXT&name=_dmarc.${ZONE}`);
   d.dmarc = dmarc[0] ? { id: dmarc[0].id, content: dmarc[0].content } : null;
   const www = await cf("GET", `/zones/${d.zoneId}/dns_records?name=${WWW}`);
@@ -236,7 +251,7 @@ function printStatus(d) {
   row("token", `${d.tokenStatus} (${d.email})`);
   row("account", `${d.accountName} (${d.accountId})`);
   row("zone id", d.zoneId);
-  row("your user has 2FA", yn(d.user2fa));
+  row("members with 2FA", d.members.length ? `${d.members.length - d.membersWithout2fa.length}/${d.members.length}` + (d.membersWithout2fa.length ? c("33", `  missing: ${d.membersWithout2fa.join(", ")}`) : "") : c("33", "unknown"));
   row("account enforces 2FA", yn(d.enforce2faNow, "yes", "not yet"));
   row("DMARC", d.dmarc ? d.dmarc.content : c("33", "missing"));
   row("R2 state bucket", yn(d.bucket, BUCKET, "missing"));
@@ -266,57 +281,72 @@ async function stepToken() {
   step("Cloudflare API token");
   if (TOKEN) {
     const v = await cf("GET", "/user/tokens/verify", undefined, { raw: true });
-    if (v.status === 200 && v.json.result?.status === "active") { ok(`token active (${process.env.CLOUDFLARE_API_TOKEN ? "from env" : "from keychain"})`); return; }
+    if (v.status === 200 && v.json.result?.status === "active") { ok(`token ${redact(TOKEN)} active (${process.env.CLOUDFLARE_API_TOKEN ? "from env" : "from keychain"})`); return; }
     warn("stored token is not active; asking for a new one");
   }
   log(`
   Create one API token that drives Terraform, wrangler and this script.
-  Open (pre-fills part of it):\n    ${TOKEN_TEMPLATE_URL}
-  Add the rest so the token has:`);
+  Open this link; it pre-fills only four permissions (DNS, Zone Settings, Workers Scripts, Access):
+    ${TOKEN_TEMPLATE_URL}
+  Before clicking "Continue to summary", add the rest with "+ Add more" so the token has:`);
   for (const [scope, ...perms] of TOKEN_PERMISSIONS) log(`    ${c("1", scope)}: ${perms.join(" · ")}`);
-  log("  Account Resources: your account.  Zone Resources: howdynet.io.  TTL: your call (rotate with ./howdy setup).\n");
+  log("  Account Resources: your account.  Zone Resources: howdynet.io.  TTL: your call (rotate with ./howdy setup).");
+  log("  A token missing something is reported below by name; fix it with API Tokens > (token) > Edit, then re-run.\n");
   if (flags.dryRun) { dry("prompt for token"); return; }
-  const t = await ask("  Paste the token: ");
+  const t = await askHidden("  Paste the token (input hidden): ");
   if (!t) die("no token given");
   const v = await cf("GET", "/user/tokens/verify", undefined, { raw: true, token: t });
   if (v.status !== 200 || v.json.result?.status !== "active") die(`token rejected: ${JSON.stringify(v.json.errors ?? v.json)}`);
   TOKEN = t;
   credSet("api-token", t);
-  ok("token verified and stored");
+  ok(`token ${redact(t)} verified and stored`);
 }
 
-async function probeToken(d) {
+async function probeToken() {
   step("Token permission probe");
+  const zones = await cf("GET", `/zones?name=${ZONE}`, undefined, { raw: true });
+  if (zones.status !== 200 || !zones.json.result?.length) die(`token cannot read zone ${ZONE} (needs Zone: Read on howdynet.io)`);
+  const zoneId = zones.json.result[0].id;
+  const accountId = zones.json.result[0].account?.id;
+  const acct = isAccountToken();
   const checks = [
-    ["Zone Settings", `/zones/${d.zoneId}/settings/security_header`],
-    ["DNS", `/zones/${d.zoneId}/dns_records?per_page=1`],
-    ["Bot Management", `/zones/${d.zoneId}/bot_management`],
-    ["Access: Apps and Policies", `/accounts/${d.accountId}/access/apps?per_page=1`],
-    ["Turnstile", `/accounts/${d.accountId}/challenges/widgets?per_page=1`],
-    ["Workers Scripts", `/accounts/${d.accountId}/workers/scripts`],
-    ["Workers KV Storage", `/accounts/${d.accountId}/storage/kv/namespaces?per_page=1`],
-    ["Workers R2 Storage", `/accounts/${d.accountId}/r2/buckets?per_page=1`],
-    ["Cloudflare Pages", `/accounts/${d.accountId}/pages/projects?per_page=1`],
-    ["Email Routing Addresses", `/accounts/${d.accountId}/email/routing/addresses?per_page=1`],
-    ["SSL and Certificates", `/zones/${d.zoneId}/ssl/certificate_packs?per_page=1`],
-    ["API Tokens (R2 state creds)", `/user/tokens/permission_groups`],
+    // [permission name, path, required?]
+    ["User Details: Read (shows who runs this; optional)", "/user", false],
+    [acct ? "Account API Tokens: Edit (R2 state creds)" : "API Tokens: Edit (R2 state creds)", acct ? `/accounts/${accountId}/tokens/permission_groups` : "/user/tokens/permission_groups", !flags.localState],
+    ["Account Settings: Read/Edit", `/accounts/${accountId}/members?per_page=1`, true],
+    ["Zone Settings: Edit", `/zones/${zoneId}/settings/security_header`, true],
+    ["DNS: Edit", `/zones/${zoneId}/dns_records?per_page=1`, true],
+    ["Bot Management: Edit", `/zones/${zoneId}/bot_management`, true],
+    ["Access: Apps and Policies: Edit", `/accounts/${accountId}/access/apps?per_page=1`, true],
+    ["Turnstile: Edit", `/accounts/${accountId}/challenges/widgets?per_page=1`, true],
+    ["Workers Scripts: Edit", `/accounts/${accountId}/workers/scripts`, true],
+    ["Workers KV Storage: Edit", `/accounts/${accountId}/storage/kv/namespaces?per_page=1`, true],
+    ["Workers R2 Storage: Edit", `/accounts/${accountId}/r2/buckets?per_page=1`, !flags.localState],
+    ["Cloudflare Pages: Edit", `/accounts/${accountId}/pages/projects?per_page=1`, true],
+    ["Email Routing Addresses: Edit", `/accounts/${accountId}/email/routing/addresses?per_page=1`, true],
+    ["SSL and Certificates: Edit", `/zones/${zoneId}/ssl/certificate_packs?per_page=1`, true],
   ];
+  if (acct) checks.shift(); // account-owned tokens have no /user
   const missing = [];
-  for (const [name, p] of checks) {
+  for (const [name, p, required] of checks) {
     const r = await cf("GET", p, undefined, { raw: true });
-    if (r.status === 200) ok(name); else { warn(`${name}: HTTP ${r.status}`); missing.push(name); }
+    if (r.status === 200) ok(name);
+    else { (required ? warn : skip)(`${name}: HTTP ${r.status}`); if (required) missing.push(name); }
   }
   if (missing.length) {
-    const fatal = missing.filter((m) => !(flags.localState && m.startsWith("API Tokens")));
-    if (fatal.length) die(`token lacks: ${fatal.join(", ")}. Edit the token in the dashboard, then re-run.`);
+    log("");
+    log(`  The token is missing: ${c("1", missing.join(", "))}`);
+    log("  Fix: dash.cloudflare.com > My Profile > API Tokens > (this token) > Edit > add the permissions above > Save. No need to recreate it. Then re-run.");
+    die("token permissions incomplete");
   }
 }
 
 async function stepTwoFactor(d) {
   step("Two-factor authentication");
-  if (d.user2fa) { ok(`${d.email} has 2FA`); return true; }
-  todo(`enable 2FA for ${d.email}: dash.cloudflare.com > My Profile > Authentication (every account member must do this). Re-run ./howdy up afterwards to enforce it account-wide.`);
-  remember("Enable 2FA on your Cloudflare user, then re-run ./howdy up");
+  if (!d.members.length) { warn("could not list account members; not enforcing 2FA this run"); return false; }
+  if (d.all2fa) { ok(`all ${d.members.length} account member(s) have 2FA; enforcing account-wide`); return true; }
+  todo(`enable 2FA for: ${d.membersWithout2fa.join(", ")} (dash.cloudflare.com > My Profile > Authentication). Re-run ./howdy up afterwards to enforce it account-wide.`);
+  remember("Enable 2FA for every account member, then re-run ./howdy up");
   return false;
 }
 
@@ -331,10 +361,11 @@ async function stepR2State(d) {
   let keyId = process.env.R2_ACCESS_KEY_ID || credGet("r2-access-key-id");
   let secret = process.env.R2_SECRET_ACCESS_KEY || credGet("r2-secret-access-key");
   if (keyId && secret) { skip("R2 S3 credentials present"); return { keyId, secret }; }
-  const groups = await cf("GET", "/user/tokens/permission_groups");
+  const tokensBase = isAccountToken() ? `/accounts/${d.accountId}/tokens` : "/user/tokens";
+  const groups = await cf("GET", `${tokensBase}/permission_groups`);
   const g = groups.find((x) => x.name === "Workers R2 Storage Write") ?? groups.find((x) => /R2/.test(x.name) && /Write|Edit/.test(x.name) && (x.scopes ?? []).includes("com.cloudflare.api.account"));
   if (!g) die("could not find the 'Workers R2 Storage Write' permission group");
-  const tok = await cf("POST", "/user/tokens", {
+  const tok = await cf("POST", tokensBase, {
     name: `${BUCKET} (terraform state, created by howdy)`,
     policies: [{ effect: "allow", resources: { [`com.cloudflare.api.account.${d.accountId}`]: "*" }, permission_groups: [{ id: g.id, name: g.name }] }],
   });
@@ -579,9 +610,9 @@ async function cmdUp() {
   await stepToolchain();
   await stepToken();
   if (flags.dryRun && !TOKEN) { dry("no token available: the remaining steps need API access. Run ./howdy setup, then ./howdy up --dry-run again."); return; }
+  await probeToken();
   const d = await discover();
   printStatus(d);
-  await probeToken(d);
   const enforce2fa = await stepTwoFactor(d);
   const r2 = await stepR2State(d);
   await stepTerraform(d, r2, enforce2fa);
@@ -604,6 +635,7 @@ async function cmdStatus() {
 async function cmdInfra() {
   await stepToolchain();
   await stepToken();
+  await probeToken();
   const d = await discover();
   const enforce2fa = await stepTwoFactor(d);
   const r2 = await stepR2State(d);
@@ -615,7 +647,7 @@ async function cmdSite() {
   await stepToolchain();
   await stepToken();
   const d = await discover();
-  const enforce2fa = d.user2fa;
+  const enforce2fa = d.all2fa;
   const r2 = flags.localState ? null : { keyId: credGet("r2-access-key-id") ?? process.env.R2_ACCESS_KEY_ID, secret: credGet("r2-secret-access-key") ?? process.env.R2_SECRET_ACCESS_KEY };
   const keys = await stepTurnstile(d, r2, enforce2fa);
   await stepEmail(d);
@@ -640,8 +672,8 @@ async function cmdGithub() {
   await stepToken();
   const d = await discover();
   const r2 = flags.localState ? null : { keyId: credGet("r2-access-key-id"), secret: credGet("r2-secret-access-key") };
-  const keys = { sitekey: tfOutput("turnstile_sitekey", d, r2, d.user2fa), secret: tfOutput("turnstile_secret", d, r2, d.user2fa) };
-  await stepGithub(d, r2, keys, d.user2fa, !!(d.workerDomain && d.workerDomain.service === WORKER));
+  const keys = { sitekey: tfOutput("turnstile_sitekey", d, r2, d.all2fa), secret: tfOutput("turnstile_secret", d, r2, d.all2fa) };
+  await stepGithub(d, r2, keys, d.all2fa, !!(d.workerDomain && d.workerDomain.service === WORKER));
 }
 
 function cmdSelftest() {
