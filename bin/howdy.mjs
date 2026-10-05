@@ -17,7 +17,7 @@
 // Zero dependencies: Node >= 22, native fetch. Runs `terraform`, `npx wrangler`, `gh`, `security`.
 
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -171,6 +171,52 @@ async function askHidden(q) {
 const redact = (t) => (t ? `${t.slice(0, 5)}…${t.slice(-4)}` : "");
 const isAccountToken = () => (TOKEN ?? "").startsWith("cfat_");
 
+// ---------------------------------------------------------------------------------- S3 SigV4 (to prove R2 credentials before Terraform uses them)
+const sha256hex = (s) => createHash("sha256").update(s).digest("hex");
+const hmac = (key, s) => createHmac("sha256", key).update(s).digest();
+
+export function sigV4Headers({ method, host, path: reqPath, query, keyId, secret, region = "auto", service = "s3", now = new Date() }) {
+  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
+  const date = amzDate.slice(0, 8);
+  const payloadHash = "UNSIGNED-PAYLOAD";
+  const headers = { host, "x-amz-content-sha256": payloadHash, "x-amz-date": amzDate };
+  const signedHeaders = Object.keys(headers).sort().join(";");
+  const canonicalHeaders = Object.keys(headers).sort().map((k) => `${k}:${headers[k]}\n`).join("");
+  const canonicalQuery = Object.keys(query).sort().map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(query[k])}`).join("&");
+  const canonicalRequest = [method, reqPath, canonicalQuery, canonicalHeaders, signedHeaders, payloadHash].join("\n");
+  const scope = `${date}/${region}/${service}/aws4_request`;
+  const stringToSign = ["AWS4-HMAC-SHA256", amzDate, scope, sha256hex(canonicalRequest)].join("\n");
+  const kSigning = hmac(hmac(hmac(hmac(`AWS4${secret}`, date), region), service), "aws4_request");
+  const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
+  return { ...headers, Authorization: `AWS4-HMAC-SHA256 Credential=${keyId}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}` };
+}
+
+const REF_SIG = "b1a076428fa68c2c42202ee5a5718b8207f725e451e2157d6b1c393e01fc2e68"; // independent Python SigV4 for the selftest inputs
+const r2Endpoint = (accountId) => process.env.HOWDY_R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`;
+
+export async function r2Check(accountId, keyId, secret) {
+  const base = new URL(r2Endpoint(accountId));
+  const query = { "list-type": "2", "max-keys": "1" };
+  const headers = sigV4Headers({ method: "GET", host: base.host, path: `/${BUCKET}`, query, keyId, secret });
+  try {
+    const r = await fetch(`${base.origin}/${BUCKET}?list-type=2&max-keys=1`, { headers });
+    return r.status;
+  } catch (e) { return `error: ${e.message}`; }
+}
+
+export async function r2WaitForCreds(accountId, keyId, secret, { attempts = 18, delayMs = 5000 } = {}) {
+  let status;
+  for (let i = 0; i < attempts; i++) {
+    status = await r2Check(accountId, keyId, secret);
+    if (status === 200) return 200;
+    if (i === 0) process.stdout.write(`  waiting for R2 to accept the credentials (HTTP ${status}) `);
+    else process.stdout.write(".");
+    await new Promise((res) => setTimeout(res, delayMs));
+  }
+  log("");
+  return status;
+}
+
 // ---------------------------------------------------------------------------------- pure helpers (covered by selftest)
 export function buildDmarc(existing) {
   const tags = new Map();
@@ -236,6 +282,8 @@ async function discover() {
   d.supportAddr = addrs.find((a) => a.email === SUPPORT) ?? null;
   const buckets = (await cfTry("GET", `/accounts/${d.accountId}/r2/buckets?per_page=100`)) ?? { buckets: [] };
   d.bucket = (buckets.buckets ?? buckets ?? []).some((b) => b.name === BUCKET);
+  const k = process.env.R2_ACCESS_KEY_ID || credGet("r2-access-key-id"), sk = process.env.R2_SECRET_ACCESS_KEY || credGet("r2-secret-access-key");
+  d.r2CredStatus = d.bucket && k && sk ? await r2Check(d.accountId, k, sk) : null;
   const scripts = (await cfTry("GET", `/accounts/${d.accountId}/workers/scripts`)) ?? [];
   d.worker = scripts.some((s) => s.id === WORKER);
   const sub = await cfTry("GET", `/accounts/${d.accountId}/workers/subdomain`);
@@ -254,7 +302,7 @@ function printStatus(d) {
   row("members with 2FA", d.members.length ? `${d.members.length - d.membersWithout2fa.length}/${d.members.length}` + (d.membersWithout2fa.length ? c("33", `  missing: ${d.membersWithout2fa.join(", ")}`) : "") : c("33", "unknown"));
   row("account enforces 2FA", yn(d.enforce2faNow, "yes", "not yet"));
   row("DMARC", d.dmarc ? d.dmarc.content : c("33", "missing"));
-  row("R2 state bucket", yn(d.bucket, BUCKET, "missing"));
+  row("R2 state bucket", yn(d.bucket, BUCKET, "missing") + (d.r2CredStatus ? `  creds: ${d.r2CredStatus === 200 ? c("32", "accepted") : c("33", "rejected (HTTP " + d.r2CredStatus + ")")}` : ""));
   row("KV namespace", d.kv ? d.kv.id : c("33", "missing"));
   row("Turnstile widget", d.widgets.length ? d.widgets.map((w) => w.name).join(", ") : c("33", "none"));
   row("support@ destination", d.supportAddr ? (d.supportAddr.verified ? c("32", "verified") : c("33", "created, not verified")) : c("33", "missing"));
@@ -365,7 +413,13 @@ async function stepR2State(d) {
   }
   let keyId = process.env.R2_ACCESS_KEY_ID || credGet("r2-access-key-id");
   let secret = process.env.R2_SECRET_ACCESS_KEY || credGet("r2-secret-access-key");
-  if (keyId && secret) { skip("R2 S3 credentials present"); return { keyId, secret }; }
+  if (keyId && secret) {
+    if (flags.dryRun) { skip("R2 S3 credentials present (not verified in dry-run)"); return { keyId, secret }; }
+    const st = await r2WaitForCreds(d.accountId, keyId, secret, { attempts: 3 });
+    if (st === 200) { ok("stored R2 S3 credentials accepted"); return { keyId, secret }; }
+    warn(`stored R2 S3 credentials rejected (HTTP ${st}); getting new ones`);
+    keyId = secret = null;
+  }
   const tokensBase = isAccountToken() ? `/accounts/${d.accountId}/tokens` : "/user/tokens";
   const groups = await cf("GET", `${tokensBase}/permission_groups`);
   const g = groups.find((x) => x.name === "Workers R2 Storage Write") ?? groups.find((x) => /R2/.test(x.name) && /Write|Edit/.test(x.name) && (x.scopes ?? []).includes("com.cloudflare.api.account"));
@@ -377,9 +431,35 @@ async function stepR2State(d) {
   if (tok.dryRun) return { keyId: "dry", secret: "dry" };
   keyId = tok.id;
   secret = createHash("sha256").update(tok.value).digest("hex");
+  ok(`minted API token ${tok.id} with ${g.name}; Access Key = token id, Secret = sha256(token value)`);
+  const st = await r2WaitForCreds(d.accountId, keyId, secret);
+  if (st === 200) {
+    credSet("r2-access-key-id", keyId);
+    credSet("r2-secret-access-key", secret);
+    ok("R2 accepted the minted credentials");
+    return { keyId, secret };
+  }
+  warn(`R2 still rejects the minted credentials (HTTP ${st}); deleting that token and falling back to a dashboard-created one`);
+  await cfTry("DELETE", `${tokensBase}/${tok.id}`);
+  return r2PromptForCreds(d);
+}
+
+async function r2PromptForCreds(d) {
+  log(`
+  Create R2 credentials in the dashboard (one minute):
+    dash.cloudflare.com > R2 Object Storage > Manage R2 API Tokens > Create API token
+    Name: ${BUCKET}   Permissions: Object Read & Write   Specify bucket: ${BUCKET}   TTL: forever
+  The page then shows "Access Key ID" and "Secret Access Key". Paste them here.
+  (Or stop and run ./howdy up --local-state to keep Terraform state on this Mac instead.)
+`);
+  const keyId = await ask("  Access Key ID: ");
+  const secret = await askHidden("  Secret Access Key (input hidden): ");
+  if (!keyId || !secret) die("no R2 credentials given");
+  const st = await r2WaitForCreds(d.accountId, keyId, secret, { attempts: 6 });
+  if (st !== 200) die(`R2 rejected those credentials too (HTTP ${st}). Check the bucket name and permission, or use --local-state.`);
   credSet("r2-access-key-id", keyId);
   credSet("r2-secret-access-key", secret);
-  ok("minted R2 S3 credentials (Access Key = token id, Secret = sha256(token))");
+  ok("R2 accepted the credentials");
   return { keyId, secret };
 }
 
@@ -416,7 +496,8 @@ async function stepTerraform(d, r2, enforce2fa) {
     const override = path.join(TF_DIR, "backend_override.tf");
     if (!fs.existsSync(override) && !flags.dryRun) fs.writeFileSync(override, 'terraform {\n  backend "local" {}\n}\n');
   }
-  run("terraform", ["init", "-input=false", "-reconfigure", "-no-color", ...(flags.localState ? [] : backendArgs(d, r2))], { cwd: TF_DIR, env });
+  const init = run("terraform", ["init", "-input=false", "-reconfigure", "-no-color", ...(flags.localState ? [] : backendArgs(d, r2))], { cwd: TF_DIR, env });
+  if (init.status !== 0) die("terraform init failed (see above). The R2 credentials were verified moments ago, so this is most likely a transient error: re-run ./howdy up.");
   const plan = run("terraform", ["plan", "-input=false", "-no-color", "-detailed-exitcode", "-out=tfplan"], { cwd: TF_DIR, env });
   if (flags.dryRun) { dry("terraform plan/apply"); return; }
   if (plan.status === 1) die("terraform plan failed");
@@ -688,6 +769,10 @@ function cmdSelftest() {
   eq(buildDmarc('"v=DMARC1; p=none; rua=mailto:abc@dmarc-reports.cloudflare.net; adkim=s"'),
     "v=DMARC1; p=quarantine; pct=100; rua=mailto:abc@dmarc-reports.cloudflare.net,mailto:postmaster@howdynet.io; fo=1; adkim=s", "dmarc: keep cloudflare rua + adkim, strip quotes");
   eq(buildDmarc(undefined), "v=DMARC1; p=quarantine; pct=100; rua=mailto:postmaster@howdynet.io; fo=1", "dmarc: missing record");
+  const h = sigV4Headers({ method: "GET", host: "examplebucket.s3.amazonaws.com", path: "/", query: { "max-keys": "2", prefix: "J" },
+    keyId: "AKIAIOSFODNN7EXAMPLE", secret: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", region: "us-east-1", service: "s3", now: new Date("2013-05-24T00:00:00Z") });
+  eq(h.Authorization.includes("Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request") && h["x-amz-date"] === "20130524T000000Z" && /Signature=[0-9a-f]{64}$/.test(h.Authorization), true, "sigv4: shape, scope and date");
+  eq(h.Authorization.split("Signature=")[1], REF_SIG, "sigv4: signature matches reference");
   const jsonc = fs.readFileSync(path.join(SITE, "wrangler.jsonc"), "utf8");
   eq(readKvId(patchKvId(jsonc, "abc123")), "abc123", "kv: patch + read id");
   const prev = previewConfig(jsonc);
