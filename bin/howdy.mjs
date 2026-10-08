@@ -806,7 +806,14 @@ async function cmdApex() {
   if (portal === WWW || portal === ZONE) die("--portal-host must be a different hostname");
   // The redirect is a zone ruleset; check that permission before touching anything.
   const rs = await cf("GET", `/zones/${d.zoneId}/rulesets/phases/http_request_dynamic_redirect/entrypoint`, undefined, { raw: true });
-  if (rs.status === 403 || rs.status === 401) die("the token lacks Zone > Single Redirect > Edit. Add it (My Profile > API Tokens > this token > Edit > + Add more > Zone / Single Redirect / Edit), then re-run ./howdy apex.");
+  if (rs.status === 403 || rs.status === 401) {
+    // Show what this token actually carries, so a missed "Update token" click is obvious.
+    const v = await cfTry("GET", "/user/tokens/verify");
+    const tok = v?.id ? await cfTry("GET", `/user/tokens/${v.id}`) : null;
+    const groups = (tok?.policies ?? []).flatMap((pol) => (pol.permission_groups ?? []).map((g) => g.name));
+    if (groups.length) { log(`  token ${redact(TOKEN)} currently has: ${groups.sort().join(", ")}`); }
+    die("the token lacks Zone > Single Redirect > Edit (the list above does not include a Single Redirect / Dynamic URL Redirects write group).\n  Fix: dash.cloudflare.com > My Profile > API Tokens > the token ending " + TOKEN.slice(-4) + " > Edit > + Add more > Zone / Single Redirect / Edit > Continue to summary > Update token. Then re-run ./howdy apex.");
+  }
   ok("token can manage Single Redirects");
   const a = await discoverApex(d);
   log(`  Access app(s) on ${ZONE}: ${a.apexApps.length ? a.apexApps.map((x) => `${x.name} (${x.domain})`).join(", ") : "none"}`);
