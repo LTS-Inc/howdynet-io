@@ -63,12 +63,23 @@ If the token is missing a permission, the probe names it; edit the token in the 
 | `./howdy infra` | R2 state + Terraform only. |
 | `./howdy site` | Turnstile keys, KV, email destination, build, preview deploy, smoke test. |
 | `./howdy cutover` | Preview deploy, smoke test, then the Pages-to-Worker switch. |
+| `./howdy apex` | Move the internal Multi-Frames portal from the bare domain to `multi-frame.howdynet.io` (DNS, tunnel hostname, Access app), then redirect `howdynet.io` to `www`. `--portal-host` overrides the hostname. |
 | `./howdy github` | Push CI secrets/variables with `gh`, or print them. |
 | `./howdy selftest` | Unit checks for the DMARC builder and config patchers. |
 
 Flags: `--dry-run`, `--yes`, `--local-state` (Terraform state on disk instead of R2),
 `--force-secrets`, `--email-sending-done`. On Linux or CI, set `CLOUDFLARE_API_TOKEN` in the
 environment instead of using the Keychain.
+
+## The bare domain
+
+`howdynet.io` without `www` was gated by the Access app of the internal Multi-Frames portal, so
+customers typing the domain hit a login page. `./howdy apex` moves that portal to
+`multi-frame.howdynet.io` (copies the DNS record, renames the tunnel ingress if the portal rides a
+Cloudflare Tunnel, repoints the Access app) and then enables the Terraform redirect rule
+(`terraform/redirects.tf`, `apex_redirect = true`). If the portal's hostname is bound somewhere the
+API cannot see (the workspace's own settings), the command says so and lists it as a manual step.
+`portal.howdynet.io` is the customer-facing Wrangler portal and is never touched.
 
 ## Day two
 

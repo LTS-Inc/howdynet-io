@@ -7,12 +7,14 @@
 //   ./howdy infra     R2 state bucket + Terraform apply (zone settings, DNS, Turnstile, ...)
 //   ./howdy site      KV namespace, Turnstile secret, build, preview deploy to workers.dev, smoke test
 //   ./howdy cutover   move www.howdynet.io from Pages to the Worker
+//   ./howdy apex      move the internal portal off the bare domain, then redirect howdynet.io -> www
 //   ./howdy github    push CI secrets/variables with `gh` (or print them)
 //   ./howdy selftest  unit checks for the pure helpers
 //
 // Flags: --dry-run (print every mutation, change nothing)  --yes (no prompts)
 //        --local-state (Terraform state in terraform/terraform.tfstate instead of R2)
 //        --force-secrets (re-push TURNSTILE_SECRET)  --email-sending-done (silence that reminder)
+//        --portal-host <fqdn> (apex: where the internal portal moves; default multi-frame.howdynet.io)
 //
 // Zero dependencies: Node >= 22, native fetch. Runs `terraform`, `npx wrangler`, `gh`, `security`.
 
@@ -61,6 +63,7 @@ const flags = {
   localState: argv.includes("--local-state"),
   forceSecrets: argv.includes("--force-secrets"),
   emailSendingDone: argv.includes("--email-sending-done"),
+  portalHost: (argv[argv.indexOf("--portal-host") + 1] && argv.includes("--portal-host")) ? argv[argv.indexOf("--portal-host") + 1] : "multi-frame.howdynet.io",
 };
 
 // ---------------------------------------------------------------------------------- output
@@ -380,6 +383,8 @@ async function probeToken() {
     ["Account > Cloudflare Pages > Edit", `/accounts/${accountId}/pages/projects?per_page=1`, true],
     ["Account > Email Routing Addresses > Edit", `/accounts/${accountId}/email/routing/addresses?per_page=1`, true],
     ["Zone > SSL and Certificates > Edit", `/zones/${zoneId}/ssl/certificate_packs?per_page=1`, true],
+    ["Zone > Single Redirect > Edit (apex redirect; needed by `howdy apex`)", `/zones/${zoneId}/rulesets?per_page=1`, false],
+    ["Account > Cloudflare Tunnel > Edit (apex move; needed only if the portal rides a tunnel)", `/accounts/${accountId}/cfd_tunnel?per_page=1&is_deleted=false`, false],
   ];
   if (acct) checks.shift(); // account-owned tokens have no /user
   const missing = [];
@@ -477,6 +482,7 @@ function tfEnv(d, r2, enforce2fa) {
     TF_VAR_zone_name: ZONE,
     TF_VAR_dmarc_record: buildDmarc(d.dmarc?.content),
     TF_VAR_enforce_2fa: enforce2fa ? "true" : "false",
+    TF_VAR_apex_redirect: loadLocal().apexRedirect ? "true" : "false",
     TF_IN_AUTOMATION: "1",
     ...(r2 ? { AWS_ACCESS_KEY_ID: r2.keyId, AWS_SECRET_ACCESS_KEY: r2.secret } : {}),
   };
@@ -678,6 +684,7 @@ async function stepGithub(d, r2, keys, enforce2fa, cutoverDone) {
     CLOUDFLARE_ACCOUNT_ID: d.accountId, CLOUDFLARE_ACCOUNT_NAME: d.accountName,
     DMARC_RECORD: buildDmarc(d.dmarc?.content), ENFORCE_2FA: enforce2fa ? "true" : "false",
     TURNSTILE_SITEKEY: keys?.sitekey, WWW_CUTOVER: cutoverDone ? "true" : "false",
+    APEX_REDIRECT: loadLocal().apexRedirect ? "true" : "false",
   };
   const ghOk = has("gh") && spawnSync("gh", ["auth", "status"], { stdio: "ignore" }).status === 0;
   if (!ghOk) {
@@ -770,6 +777,106 @@ async function cmdGithub() {
   await stepGithub(d, r2, keys, d.all2fa, !!(d.workerDomain && d.workerDomain.service === WORKER));
 }
 
+// ---------------------------------------------------------------------------------- apex: move the internal portal, redirect bare domain to www
+async function discoverApex(d) {
+  const a = {};
+  const apps = (await cf("GET", `/accounts/${d.accountId}/access/apps?per_page=100`)) ?? [];
+  a.apexApps = apps.filter((x) => x.domain === ZONE || (x.self_hosted_domains ?? []).includes(ZONE) || (x.destinations ?? []).some((t) => t.uri === ZONE));
+  a.bypassApps = apps.filter((x) => (x.domain ?? "").startsWith(`${ZONE}/`));
+  const recs = await cf("GET", `/zones/${d.zoneId}/dns_records?name=${ZONE}&per_page=50`);
+  a.apexRecords = recs.filter((r) => ["A", "AAAA", "CNAME"].includes(r.type));
+  const portalRecs = await cf("GET", `/zones/${d.zoneId}/dns_records?name=${flags.portalHost}&per_page=10`);
+  a.portalRecords = portalRecs.filter((r) => ["A", "AAAA", "CNAME"].includes(r.type));
+  a.tunnels = [];
+  const tunnels = (await cfTry("GET", `/accounts/${d.accountId}/cfd_tunnel?is_deleted=false&per_page=100`)) ?? [];
+  for (const t of tunnels) {
+    const cfg = await cfTry("GET", `/accounts/${d.accountId}/cfd_tunnel/${t.id}/configurations`);
+    const ingress = cfg?.config?.ingress ?? [];
+    if (ingress.some((i) => i.hostname === ZONE)) a.tunnels.push({ id: t.id, name: t.name, config: cfg.config });
+  }
+  return a;
+}
+
+async function cmdApex() {
+  await stepToolchain();
+  await stepToken();
+  const d = await discover();
+  const portal = flags.portalHost;
+  step(`Bare domain: move the internal portal to ${portal}, then redirect ${ZONE} -> ${WWW}`);
+  if (portal === WWW || portal === ZONE) die("--portal-host must be a different hostname");
+  const a = await discoverApex(d);
+  log(`  Access app(s) on ${ZONE}: ${a.apexApps.length ? a.apexApps.map((x) => `${x.name} (${x.domain})`).join(", ") : "none"}`);
+  log(`  DNS on ${ZONE}: ${a.apexRecords.map((r) => `${r.type} ${r.content}${r.proxied ? " (proxied)" : ""}`).join(", ") || "none"}`);
+  log(`  Tunnel(s) routing ${ZONE}: ${a.tunnels.map((t) => t.name).join(", ") || "none"}`);
+  log(`  DNS on ${portal}: ${a.portalRecords.map((r) => `${r.type} ${r.content}`).join(", ") || "none"}`);
+  if (a.portalRecords.length && a.apexApps.length === 0 && loadLocal().apexRedirect) { ok("already moved and redirect enabled"); return; }
+
+  if (a.apexApps.length === 0 && a.portalRecords.length === 0) {
+    warn(`no Access app found on ${ZONE}; nothing to move. If the login page still shows on the bare domain, the app may use a hostname pattern; check Zero Trust > Access > Applications.`);
+  }
+  const tunnelBound = a.tunnels.length > 0;
+  const cnameTunnel = a.apexRecords.find((r) => r.type === "CNAME" && /\.cfargotunnel\.com$/.test(r.content));
+  if (!tunnelBound) {
+    warn(`could not find a Cloudflare Tunnel ingress for ${ZONE}. The portal's own hostname binding (Cloudflare OS workspace / Multi-Frames settings) must be changed to ${portal} by hand; this command still moves DNS and the Access app.`);
+    remember(`Point the Multi-Frames portal (workspace multi-frames-cloud) at ${portal} in its own settings`);
+  }
+  log("");
+  log("  Plan:");
+  log(`    1. DNS: create ${portal} as a copy of the ${ZONE} record (${a.apexRecords[0]?.type ?? "?"} ${a.apexRecords[0]?.content ?? "?"}, proxied)`);
+  if (tunnelBound) log(`    2. Tunnel: rename ingress hostname ${ZONE} -> ${portal} in ${a.tunnels.map((t) => t.name).join(", ")}`);
+  log(`    3. Access: point ${a.apexApps.map((x) => x.name).join(", ") || "the portal app"} at ${portal}`);
+  log(`    4. Terraform: enable the ${ZONE} -> ${WWW} redirect rule`);
+  log(`    Unchanged: ${a.bypassApps.map((x) => x.domain).join(", ") || "n/a"} (security.txt bypass), ${ZONE} DNS record, portal.howdynet.io`);
+  if (!(await confirm("  Proceed?"))) die("aborted");
+
+  // 1. DNS
+  if (a.portalRecords.length) skip(`${portal} DNS exists`);
+  else if (!a.apexRecords.length) die(`no A/AAAA/CNAME record on ${ZONE} to copy`);
+  else {
+    const src = a.apexRecords.find((r) => r.type === "CNAME") ?? a.apexRecords[0];
+    await cf("POST", `/zones/${d.zoneId}/dns_records`, { type: src.type, name: portal, content: src.content, proxied: true, ttl: 1, comment: "Internal portal (moved off the apex by howdy)" });
+    ok(`created ${src.type} ${portal} -> ${src.content}`);
+  }
+  // 2. Tunnel ingress
+  for (const t of a.tunnels) {
+    const config = JSON.parse(JSON.stringify(t.config));
+    for (const i of config.ingress) if (i.hostname === ZONE) i.hostname = portal;
+    await cf("PUT", `/accounts/${d.accountId}/cfd_tunnel/${t.id}/configurations`, { config });
+    ok(`tunnel ${t.name}: ingress ${ZONE} -> ${portal}`);
+  }
+  // 3. Access app
+  for (const app of a.apexApps) {
+    // Send the app back whole, with only the hostname fields changed, so no other setting resets.
+    const body = { ...app };
+    for (const k of ["id", "uid", "aud", "created_at", "updated_at"]) delete body[k];
+    body.domain = app.domain === ZONE ? portal : app.domain;
+    if (app.self_hosted_domains) body.self_hosted_domains = app.self_hosted_domains.map((h) => (h === ZONE ? portal : h));
+    if (app.destinations) body.destinations = app.destinations.map((t) => (t.uri === ZONE ? { ...t, uri: portal } : t));
+    if (app.policies) body.policies = app.policies.map((pol) => (typeof pol === "string" ? pol : { id: pol.id, precedence: pol.precedence }));
+    await cf("PUT", `/accounts/${d.accountId}/access/apps/${app.id}`, body);
+    ok(`Access app ${app.name}: ${ZONE} -> ${portal}`);
+  }
+  // 4. Redirect via Terraform
+  saveLocal({ apexRedirect: true, portalHost: portal });
+  const r2 = flags.localState ? null : { keyId: credGet("r2-access-key-id") ?? process.env.R2_ACCESS_KEY_ID, secret: credGet("r2-secret-access-key") ?? process.env.R2_SECRET_ACCESS_KEY };
+  await stepTerraform(d, r2, d.all2fa && d.enforce2faNow);
+  // 5. Verify
+  if (!flags.dryRun) {
+    step("Verify");
+    for (const [url, want] of [[`https://${ZONE}/`, "301 to www"], [`https://${portal}/`, "Access login"]]) {
+      let line = "";
+      try {
+        const r = await fetch(url, { redirect: "manual" });
+        const loc = r.headers.get("location") ?? "";
+        line = `${r.status} ${loc}`;
+        const good = want === "301 to www" ? r.status === 301 && loc.startsWith(`https://${WWW}/`) : r.status === 302 && loc.includes("cloudflareaccess.com");
+        (good ? ok : warn)(`${url} -> ${line} (expected ${want})`);
+      } catch (e) { warn(`${url}: ${e.message}`); }
+    }
+  }
+  report();
+}
+
 function cmdSelftest() {
   const eq = (a, b, what) => { if (a !== b) { console.error(`FAIL ${what}\n  got:  ${a}\n  want: ${b}`); process.exitCode = 1; } else ok(what); };
   eq(buildDmarc('v=DMARC1; p=none; rua=mailto:postmaster@howdynet.io; fo=1'),
@@ -795,7 +902,7 @@ function help() {
   log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 17).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
 }
 
-const commands = { up: cmdUp, setup: stepToken, status: cmdStatus, infra: cmdInfra, site: cmdSite, cutover: cmdCutover, github: cmdGithub, selftest: cmdSelftest, help };
+const commands = { up: cmdUp, setup: stepToken, status: cmdStatus, infra: cmdInfra, site: cmdSite, cutover: cmdCutover, apex: cmdApex, github: cmdGithub, selftest: cmdSelftest, help };
 if (!commands[cmd]) { help(); die(`unknown command: ${cmd}`); }
 try {
   await commands[cmd]();

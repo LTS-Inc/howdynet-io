@@ -61,3 +61,9 @@ variable "enforce_2fa" {
   type        = bool
   default     = false
 }
+
+variable "apex_redirect" {
+  description = "Redirect the bare domain to www. Enable only after the internal portal and its Access app have moved off the apex (`howdy apex` does both)."
+  type        = bool
+  default     = false
+}
