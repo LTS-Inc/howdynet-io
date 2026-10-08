@@ -47,7 +47,7 @@ const TOKEN_PERMISSIONS = [
   ["Account", "Account Settings: Edit", "Turnstile: Edit", "Access: Apps and Policies: Edit", "Workers Scripts: Edit",
     "Workers KV Storage: Edit", "Workers R2 Storage: Edit", "Cloudflare Pages: Edit", "Email Routing Addresses: Edit"],
   ["Zone (howdynet.io)", "Zone: Read", "Zone Settings: Edit", "DNS: Edit", "Bot Management: Edit",
-    "Access: Apps and Policies: Edit", "Workers Routes: Edit", "SSL and Certificates: Edit", "Zone WAF: Edit"],
+    "Access: Apps and Policies: Edit", "Workers Routes: Edit", "SSL and Certificates: Edit", "Zone WAF: Edit", "Single Redirect: Edit"],
 ];
 const TOKEN_TEMPLATE_URL = "https://dash.cloudflare.com/profile/api-tokens?name=howdynet-io&accountId=*&zoneId=all&permissionGroupKeys=" +
   encodeURIComponent(JSON.stringify([
@@ -804,12 +804,17 @@ async function cmdApex() {
   const portal = flags.portalHost;
   step(`Bare domain: move the internal portal to ${portal}, then redirect ${ZONE} -> ${WWW}`);
   if (portal === WWW || portal === ZONE) die("--portal-host must be a different hostname");
+  // The redirect is a zone ruleset; check that permission before touching anything.
+  const rs = await cf("GET", `/zones/${d.zoneId}/rulesets/phases/http_request_dynamic_redirect/entrypoint`, undefined, { raw: true });
+  if (rs.status === 403 || rs.status === 401) die("the token lacks Zone > Single Redirect > Edit. Add it (My Profile > API Tokens > this token > Edit > + Add more > Zone / Single Redirect / Edit), then re-run ./howdy apex.");
+  ok("token can manage Single Redirects");
   const a = await discoverApex(d);
   log(`  Access app(s) on ${ZONE}: ${a.apexApps.length ? a.apexApps.map((x) => `${x.name} (${x.domain})`).join(", ") : "none"}`);
   log(`  DNS on ${ZONE}: ${a.apexRecords.map((r) => `${r.type} ${r.content}${r.proxied ? " (proxied)" : ""}`).join(", ") || "none"}`);
   log(`  Tunnel(s) routing ${ZONE}: ${a.tunnels.map((t) => t.name).join(", ") || "none"}`);
   log(`  DNS on ${portal}: ${a.portalRecords.map((r) => `${r.type} ${r.content}`).join(", ") || "none"}`);
-  if (a.portalRecords.length && a.apexApps.length === 0 && loadLocal().apexRedirect) { ok("already moved and redirect enabled"); return; }
+  const alreadyMoved = a.portalRecords.length > 0 && a.apexApps.length === 0;
+  if (alreadyMoved) ok(`portal already on ${portal}; only the redirect is left to apply`);
 
   if (a.apexApps.length === 0 && a.portalRecords.length === 0) {
     warn(`no Access app found on ${ZONE}; nothing to move. If the login page still shows on the bare domain, the app may use a hostname pattern; check Zero Trust > Access > Applications.`);
@@ -820,6 +825,7 @@ async function cmdApex() {
     warn(`could not find a Cloudflare Tunnel ingress for ${ZONE}. The portal's own hostname binding (Cloudflare OS workspace / Multi-Frames settings) must be changed to ${portal} by hand; this command still moves DNS and the Access app.`);
     remember(`Point the Multi-Frames portal (workspace multi-frames-cloud) at ${portal} in its own settings`);
   }
+  if (!alreadyMoved) {
   log("");
   log("  Plan:");
   log(`    1. DNS: create ${portal} as a copy of the ${ZONE} record (${a.apexRecords[0]?.type ?? "?"} ${a.apexRecords[0]?.content ?? "?"}, proxied)`);
@@ -828,6 +834,7 @@ async function cmdApex() {
   log(`    4. Terraform: enable the ${ZONE} -> ${WWW} redirect rule`);
   log(`    Unchanged: ${a.bypassApps.map((x) => x.domain).join(", ") || "n/a"} (security.txt bypass), ${ZONE} DNS record, portal.howdynet.io`);
   if (!(await confirm("  Proceed?"))) die("aborted");
+  }
 
   // 1. DNS
   if (a.portalRecords.length) skip(`${portal} DNS exists`);
@@ -871,6 +878,7 @@ async function cmdApex() {
         line = `${r.status} ${loc}`;
         const good = want === "301 to www" ? r.status === 301 && loc.startsWith(`https://${WWW}/`) : r.status === 302 && loc.includes("cloudflareaccess.com");
         (good ? ok : warn)(`${url} -> ${line} (expected ${want})`);
+        if (!good && want === "301 to www" && r.status === 200) warn(`${ZONE} is serving its origin (the old Pages site) publicly until the redirect applies`);
       } catch (e) { warn(`${url}: ${e.message}`); }
     }
   }
