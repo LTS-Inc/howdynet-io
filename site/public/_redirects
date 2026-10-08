@@ -1,6 +1,6 @@
-# coverage page not yet built; send visitors to the internet section
-/coverage        /#internet  302
-/coverage.html   /#internet  302
-/privacy.html    /privacy    301
-/terms.html      /terms      301
-/index.html      /           301
+# old one-page anchors and legacy paths
+/coverage        /about#coverage  301
+/coverage.html   /about#coverage  301
+/privacy.html    /privacy         301
+/terms.html      /terms           301
+/index.html      /                301

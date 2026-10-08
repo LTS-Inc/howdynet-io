@@ -8,6 +8,7 @@
 //   ./howdy site      KV namespace, Turnstile secret, build, preview deploy to workers.dev, smoke test
 //   ./howdy cutover   move www.howdynet.io from Pages to the Worker
 //   ./howdy apex      move the internal portal off the bare domain, then redirect howdynet.io -> www
+//   ./howdy admin     protect www.howdynet.io/admin with Cloudflare Access (Google sign-in, support@ only)
 //   ./howdy github    push CI secrets/variables with `gh` (or print them)
 //   ./howdy selftest  unit checks for the pure helpers
 //
@@ -15,6 +16,7 @@
 //        --local-state (Terraform state in terraform/terraform.tfstate instead of R2)
 //        --force-secrets (re-push TURNSTILE_SECRET)  --email-sending-done (silence that reminder)
 //        --portal-host <fqdn> (apex: where the internal portal moves; default multi-frame.howdynet.io)
+//        --admin-email <email> (admin: allowed Google account; repeatable; default support@howdynet.io)
 //
 // Zero dependencies: Node >= 22, native fetch. Runs `terraform`, `npx wrangler`, `gh`, `security`.
 
@@ -64,6 +66,7 @@ const flags = {
   forceSecrets: argv.includes("--force-secrets"),
   emailSendingDone: argv.includes("--email-sending-done"),
   portalHost: (argv[argv.indexOf("--portal-host") + 1] && argv.includes("--portal-host")) ? argv[argv.indexOf("--portal-host") + 1] : "multi-frame.howdynet.io",
+  adminEmails: argv.flatMap((a, i) => (a === "--admin-email" && argv[i + 1] ? [argv[i + 1]] : [])),
 };
 
 // ---------------------------------------------------------------------------------- output
@@ -483,6 +486,7 @@ function tfEnv(d, r2, enforce2fa) {
     TF_VAR_dmarc_record: buildDmarc(d.dmarc?.content),
     TF_VAR_enforce_2fa: enforce2fa ? "true" : "false",
     TF_VAR_apex_redirect: loadLocal().apexRedirect ? "true" : "false",
+    ...adminTfVars(),
     TF_IN_AUTOMATION: "1",
     ...(r2 ? { AWS_ACCESS_KEY_ID: r2.keyId, AWS_SECRET_ACCESS_KEY: r2.secret } : {}),
   };
@@ -679,12 +683,16 @@ async function stepGithub(d, r2, keys, enforce2fa, cutoverDone) {
     CLOUDFLARE_API_TOKEN: TOKEN, CLOUDFLARE_WORKERS_API_TOKEN: TOKEN,
     ...(r2 ? { R2_ACCESS_KEY_ID: r2.keyId, R2_SECRET_ACCESS_KEY: r2.secret } : {}),
     TURNSTILE_SECRET: keys?.secret,
+    GOOGLE_CLIENT_ID: credGet("google-client-id") ?? undefined,
+    GOOGLE_CLIENT_SECRET: credGet("google-client-secret") ?? undefined,
   };
   const vars = {
     CLOUDFLARE_ACCOUNT_ID: d.accountId, CLOUDFLARE_ACCOUNT_NAME: d.accountName,
     DMARC_RECORD: buildDmarc(d.dmarc?.content), ENFORCE_2FA: enforce2fa ? "true" : "false",
     TURNSTILE_SITEKEY: keys?.sitekey, WWW_CUTOVER: cutoverDone ? "true" : "false",
     APEX_REDIRECT: loadLocal().apexRedirect ? "true" : "false",
+    ADMIN_ACCESS: loadLocal().adminAccess ? "true" : "false",
+    ADMIN_EMAILS: JSON.stringify(loadLocal().adminEmails ?? ["support@howdynet.io"]),
   };
   const ghOk = has("gh") && spawnSync("gh", ["auth", "status"], { stdio: "ignore" }).status === 0;
   if (!ghOk) {
@@ -892,6 +900,94 @@ async function cmdApex() {
   report();
 }
 
+// ── admin: Cloudflare Access (Google) in front of www/admin ───────────────────────────────────────
+const ADMIN_PATH = "/admin";
+
+function adminTfVars() {
+  const local = loadLocal();
+  const id = credGet("google-client-id") ?? process.env.GOOGLE_CLIENT_ID;
+  const secret = credGet("google-client-secret") ?? process.env.GOOGLE_CLIENT_SECRET;
+  if (!local.adminAccess || !id || !secret) return { TF_VAR_admin_access: "false" };
+  return {
+    TF_VAR_admin_access: "true",
+    TF_VAR_google_client_id: id,
+    TF_VAR_google_client_secret: secret,
+    TF_VAR_admin_emails: JSON.stringify(local.adminEmails ?? ["support@howdynet.io"]),
+  };
+}
+
+// Replace (or add) the top-level "vars" block of site/wrangler.jsonc. Non-secret Worker variables
+// are committed, so a deploy from CI carries them too.
+export function patchVars(jsonc, vars) {
+  const block = `"vars": ${JSON.stringify(vars, null, 2).replace(/\n/g, "\n  ")}`;
+  const re = /^(\s*)"vars":\s*\{[\s\S]*?\n\s*\}/m;
+  if (re.test(jsonc)) return jsonc.replace(re, `$1${block}`);
+  return jsonc.replace(/(\n\s*"observability")/, `\n  ${block},$1`);
+}
+
+async function cmdAdmin() {
+  await stepToolchain();
+  await stepToken();
+  const d = await discover();
+  const emails = flags.adminEmails.length ? flags.adminEmails : (loadLocal().adminEmails ?? ["support@howdynet.io"]);
+  step(`Admin: Cloudflare Access with Google sign-in on ${WWW}${ADMIN_PATH} for ${emails.join(", ")}`);
+  const teamRes = await cfTry("GET", `/accounts/${d.accountId}/access/organizations`);
+  const team = teamRes?.auth_domain;
+  if (!team) die("no Zero Trust organization on this account. Open dash.cloudflare.com > Zero Trust once to create the team domain, then re-run.");
+  ok(`team domain ${team}`);
+
+  let id = credGet("google-client-id") ?? process.env.GOOGLE_CLIENT_ID;
+  let secret = credGet("google-client-secret") ?? process.env.GOOGLE_CLIENT_SECRET;
+  if (id && secret) skip(`Google OAuth client ${id.slice(0, 12)}… from keychain (set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET env to replace)`);
+  else if (flags.dryRun) { dry("prompt for Google OAuth client"); id = "<client-id>"; secret = "<secret>"; }
+  else {
+    log("  One manual step: create a Google OAuth client for the sign-in page.");
+    log("    1. console.cloud.google.com > APIs & Services > OAuth consent screen (add the support@ user as a test user if External)");
+    log("    2. Credentials > Create credentials > OAuth client ID > Web application");
+    log(`    3. Authorized redirect URI: ${c("1", `https://${team}/cdn-cgi/access/callback`)}`);
+    log("    4. Paste the client ID and secret here (secret input is hidden; both are stored in your Keychain).");
+    id = (await ask("  Google client ID: ")).trim();
+    secret = (await askHidden("  Google client secret: ")).trim();
+    if (!id || !secret) die("client id and secret are required");
+    credSet("google-client-id", id);
+    credSet("google-client-secret", secret);
+  }
+  saveLocal({ adminAccess: true, adminEmails: emails });
+
+  const r2 = flags.localState ? null : { keyId: credGet("r2-access-key-id") ?? process.env.R2_ACCESS_KEY_ID, secret: credGet("r2-secret-access-key") ?? process.env.R2_SECRET_ACCESS_KEY };
+  const enforce2fa = d.all2fa && d.enforce2faNow;
+  await stepTerraform(d, r2, enforce2fa);
+  const aud = tfOutput("admin_access_aud", d, r2, enforce2fa);
+  if (!aud) die("terraform output admin_access_aud is empty");
+  ok(`Access application AUD ${aud.slice(0, 10)}…`);
+
+  step("Worker variables -> site/wrangler.jsonc, build, deploy");
+  const jsoncPath = path.join(SITE, "wrangler.jsonc");
+  const vars = { ACCESS_AUD: aud, ACCESS_TEAM_DOMAIN: team, ADMIN_EMAILS: emails.join(",") };
+  if (!flags.dryRun) fs.writeFileSync(jsoncPath, patchVars(fs.readFileSync(jsoncPath, "utf8"), vars));
+  ok(`vars ${Object.keys(vars).join(", ")} written (commit site/wrangler.jsonc)`);
+  const envFile = path.join(SITE, ".env");
+  const sitekey = (fs.existsSync(envFile) && fs.readFileSync(envFile, "utf8").match(/PUBLIC_TURNSTILE_SITEKEY=(.*)/)?.[1]) || tfOutput("turnstile_sitekey", d, r2, enforce2fa);
+  await stepBuild(sitekey);
+  const dep = wrangler(["deploy", "-c", "dist/server/wrangler.json"]);
+  if (dep.status !== 0) die("deploy failed");
+  ok("deployed");
+
+  if (!flags.dryRun) {
+    step("Verify");
+    try {
+      const r = await fetch(`https://${WWW}${ADMIN_PATH}`, { redirect: "manual" });
+      const loc = r.headers.get("location") ?? "";
+      const good = r.status === 302 && loc.includes(team);
+      (good ? ok : warn)(`GET https://${WWW}${ADMIN_PATH} anonymous -> ${r.status} ${loc} (expected 302 to ${team})`);
+      if (!good && r.status === 403) ok("the Worker refuses anonymous requests itself; Access may take a minute to propagate");
+    } catch (e) { warn(e.message); }
+    remember(`Sign in at https://${WWW}${ADMIN_PATH} with ${emails[0]} (Google) and flip the toggles`);
+    remember("Run ./howdy github so CI gets GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET and ADMIN_ACCESS for Terraform");
+  }
+  report();
+}
+
 function cmdSelftest() {
   const eq = (a, b, what) => { if (a !== b) { console.error(`FAIL ${what}\n  got:  ${a}\n  want: ${b}`); process.exitCode = 1; } else ok(what); };
   eq(buildDmarc('v=DMARC1; p=none; rua=mailto:postmaster@howdynet.io; fo=1'),
@@ -911,13 +1007,17 @@ function cmdSelftest() {
   eq("routes" in prev, false, "preview: routes removed");
   eq(prev.main === "entry.mjs" && prev.assets.directory === "../client" && prev.kv_namespaces.length === 1 && prev.send_email.length === 1 && prev.workers_dev === true, true, "preview: everything else kept");
   let threw = false; try { previewConfig('{"name":"x"}'); } catch { threw = true; } eq(threw, true, "preview: rejects a non-generated config");
+  const withVars = patchVars(jsonc, { ACCESS_AUD: "aud1", ACCESS_TEAM_DOMAIN: "t.cloudflareaccess.com", ADMIN_EMAILS: "a@b.c" });
+  eq(withVars.includes('"ACCESS_AUD": "aud1"') && withVars.includes('"observability"'), true, "vars: inserted before observability");
+  const replaced = patchVars(withVars, { ACCESS_AUD: "aud2" });
+  eq(replaced.includes('"aud2"') && !replaced.includes('"aud1"') && replaced.includes('"observability"'), true, "vars: replaced in place");
 }
 
 function help() {
-  log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 17).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
+  log(fs.readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 19).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
 }
 
-const commands = { up: cmdUp, setup: stepToken, status: cmdStatus, infra: cmdInfra, site: cmdSite, cutover: cmdCutover, apex: cmdApex, github: cmdGithub, selftest: cmdSelftest, help };
+const commands = { up: cmdUp, setup: stepToken, status: cmdStatus, infra: cmdInfra, site: cmdSite, cutover: cmdCutover, apex: cmdApex, admin: cmdAdmin, github: cmdGithub, selftest: cmdSelftest, help };
 if (!commands[cmd]) { help(); die(`unknown command: ${cmd}`); }
 try {
   await commands[cmd]();

@@ -1,0 +1,81 @@
+---
+import Icon from "./Icon.astro";
+import { money } from "../lib/settings";
+const m = Astro.locals.settings.pricing.managed;
+type Cell = boolean | string;
+const plans = [
+  { key: "pos", name: "POS Managed", price: m.pos, tagline: "Just keep the registers online.", popular: false },
+  { key: "complete", name: "Complete", price: m.complete, tagline: "The whole venue, one call.", popular: true },
+  { key: "mspBasic", name: "MSP Basic", price: m.mspBasic, tagline: "Monitoring plus quarterly reviews.", popular: false },
+  { key: "mspAdvanced", name: "MSP Advanced", price: m.mspAdvanced, tagline: "Full IT department, monthly reviews.", popular: false },
+];
+const rows: { label: string; cells: Cell[] }[] = [
+  { label: "LAN management (switches, Wi-Fi, VLANs)", cells: [true, true, true, true] },
+  { label: "Router, gateway and WAN monitoring", cells: [true, true, true, true] },
+  { label: "LTE failover", cells: [false, true, true, true] },
+  { label: "Guest Wi-Fi, cameras, door access, AV, signage, IoT", cells: [false, true, true, true] },
+  { label: "24/7 monitoring and alerts", cells: ["Business hours", true, true, true] },
+  { label: "Onsite rates (business hours / after hours)", cells: ["$175 / $250", "$135 / $200", "$115 / $175", "$90 / $125"] },
+  { label: "Business reviews", cells: [false, false, "Quarterly", "Monthly"] },
+  { label: "Hardware included", cells: ["None", "1 access point", "2 APs + LTE", "2 APs + LTE"] },
+];
+---
+<div class="plan-table-wrap">
+  <table class="plan-table">
+    <caption class="visually-hidden">Managed IT plans compared</caption>
+    <thead>
+      <tr>
+        <th scope="col">What you get</th>
+        {plans.map((p) => (
+          <th scope="col" class:list={{ "is-popular": p.popular }}>
+            {p.popular && <span class="badge">Most popular</span>}
+            <div class="plan-name">{p.name}</div>
+            <div class="price"><b>{money(p.price)}</b><span>/mo</span></div>
+            <div class="small muted" style="font-weight:600;">{p.tagline}</div>
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((r) => (
+        <tr>
+          <th scope="row">{r.label}</th>
+          {r.cells.map((c, i) => (
+            <td class:list={{ "is-popular": plans[i].popular }}>
+              {c === true ? <Icon name="check" class="icon-check" label="Included" /> : c === false ? <Icon name="minus" class="icon-minus" label="Not included" /> : c}
+            </td>
+          ))}
+        </tr>
+      ))}
+      <tr>
+        <td></td>
+        {plans.map((p) => (
+          <td class:list={{ "is-popular": p.popular }}><a class="btn btn-accent btn-sm" href="/about?need=managed#contact">Get {p.name}</a></td>
+        ))}
+      </tr>
+    </tbody>
+  </table>
+</div>
+<div class="plan-cards">
+  {plans.map((p, i) => (
+    <article class:list={["plan", { "plan--popular": p.popular }]}>
+      {p.popular && <span class="badge">Most popular</span>}
+      <div class="plan-name">{p.name}</div>
+      <p class="plan-tagline">{p.tagline}</p>
+      <div class="price"><b>{money(p.price)}</b><span>/mo</span></div>
+      <dl>
+        {rows.map((r) => {
+          const c = r.cells[i];
+          return (
+            <>
+              <dt>{r.label}</dt>
+              <dd>{c === true ? <Icon name="check" class="icon-check" label="Included" /> : c === false ? <Icon name="minus" class="icon-minus" label="Not included" /> : c}</dd>
+            </>
+          );
+        })}
+      </dl>
+      <a class="btn btn-accent" href="/about?need=managed#contact">Get {p.name}</a>
+    </article>
+  ))}
+</div>
+<p class="small muted" style="margin-top:16px;">Hardware beyond what a plan includes is billed at our procurement cost. Onsite visits are billed hourly at the plan's rate; remote support is included.</p>

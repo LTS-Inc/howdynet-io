@@ -1,22 +1,22 @@
 ---
 import Legal from "../layouts/Legal.astro";
+export const prerender = true;
 ---
 <Legal
   title="Terms of Service · HowdyNET"
   description="HowdyNET Terms of Service — the rules governing use of our website and services."
   variant="terms"
-  heading="Terms of"
-  headingAccent="Service"
+  heading="Terms of Service"
   effective="May 1, 2026"
   updated="September 24, 2026"
 >
 
 
-  <div class="callout">
+  <div class="notice">
     <strong>Please read these terms carefully.</strong> By accessing or using howdynet.io or any HowdyNET service, you agree to be bound by these Terms of Service. If you do not agree, please do not use our site or services.
   </div>
 
-  <div class="toc">
+  <div class="card" style="margin-bottom:24px;">
     <h3>Table of Contents</h3>
     <ol>
       <li><a href="#acceptance">Acceptance of Terms</a></li>
@@ -37,16 +37,14 @@ import Legal from "../layouts/Legal.astro";
   </div>
 
   <!-- 1 -->
-  <section class="policy-section" id="acceptance">
-    <span class="section-num">Section 01</span>
+  <section id="acceptance">
     <h2>Acceptance of Terms</h2>
     <p>These Terms of Service ("Terms") constitute a legally binding agreement between you ("you" or "User") and HowdyNET ("Company," "we," "us," or "our"), governing your access to and use of our website at <strong>howdynet.io</strong> and any associated services, tools, or content (collectively, the "Services").</p>
     <p>By using our website or Services, submitting a contact or quote form, or engaging us for any business purpose, you acknowledge that you have read, understood, and agree to be bound by these Terms and our <a href="/privacy" style="color:var(--blue)">Privacy Policy</a>, which is incorporated herein by reference.</p>
   </section>
 
   <!-- 2 -->
-  <section class="policy-section" id="services">
-    <span class="section-num">Section 02</span>
+  <section id="services">
     <h2>Our Services</h2>
     <p>HowdyNET provides managed technology services including, but not limited to:</p>
     <ul>
@@ -61,23 +59,20 @@ import Legal from "../layouts/Legal.astro";
   </section>
 
   <!-- 3 -->
-  <section class="policy-section" id="eligibility">
-    <span class="section-num">Section 03</span>
+  <section id="eligibility">
     <h2>Eligibility</h2>
     <p>You must be at least 18 years of age to use our Services. By using our website, you represent and warrant that you are 18 or older and have the legal authority to enter into these Terms on your own behalf or on behalf of an organization you represent.</p>
   </section>
 
   <!-- 4 -->
-  <section class="policy-section" id="accounts">
-    <span class="section-num">Section 04</span>
+  <section id="accounts">
     <h2>Client Accounts & Service Agreements</h2>
     <p>Clients who engage HowdyNET for ongoing managed services will enter into a separate service agreement that governs payment terms, service levels, response times, and other operational matters. These Terms supplement, and do not replace, any such agreement.</p>
     <p>You are responsible for maintaining the accuracy of information provided to us, including contact information, billing details, and network specifications needed to deliver services.</p>
   </section>
 
   <!-- 5 -->
-  <section class="policy-section" id="use-of-site">
-    <span class="section-num">Section 05</span>
+  <section id="use-of-site">
     <h2>Acceptable Use</h2>
     <p>You agree to use our website and Services only for lawful purposes and in accordance with these Terms. You agree not to:</p>
     <ul>
@@ -96,8 +91,7 @@ import Legal from "../layouts/Legal.astro";
   </section>
 
   <!-- 6 -->
-  <section class="policy-section" id="ip">
-    <span class="section-num">Section 06</span>
+  <section id="ip">
     <h2>Intellectual Property</h2>
     <p>All content on howdynet.io — including but not limited to the HowdyNET name and logo, website design, text, graphics, network diagnostic tools, and software — is the property of HowdyNET or its licensors and is protected by United States and international intellectual property laws.</p>
     <p>You may access and use our website for your personal or internal business purposes. You may not reproduce, distribute, modify, create derivative works from, publicly display, or exploit any part of our content without our prior written permission.</p>
@@ -105,8 +99,7 @@ import Legal from "../layouts/Legal.astro";
   </section>
 
   <!-- 7 -->
-  <section class="policy-section" id="network-tools">
-    <span class="section-num">Section 07</span>
+  <section id="network-tools">
     <h2>Network Diagnostic Tools</h2>
     <p>Our website offers a free, browser-based network quality test that measures indicators such as latency, jitter, packet loss, and bufferbloat. You understand and agree that:</p>
     <ul>
@@ -118,15 +111,13 @@ import Legal from "../layouts/Legal.astro";
   </section>
 
   <!-- 8 -->
-  <section class="policy-section" id="third-party">
-    <span class="section-num">Section 08</span>
+  <section id="third-party">
     <h2>Third-Party Links & Services</h2>
     <p>Our website may contain links to third-party websites or reference third-party services. These links are provided for convenience only. HowdyNET does not endorse, control, or take responsibility for the content, privacy practices, or availability of any third-party sites. Your use of third-party sites is governed by their respective terms and privacy policies.</p>
   </section>
 
   <!-- 9 -->
-  <section class="policy-section" id="disclaimers">
-    <span class="section-num">Section 09</span>
+  <section id="disclaimers">
     <h2>Disclaimers</h2>
     <p>OUR WEBSITE AND ITS CONTENT ARE PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS WITHOUT ANY WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.</p>
     <p>WE DO NOT WARRANT THAT OUR WEBSITE WILL BE UNINTERRUPTED, ERROR-FREE, OR FREE OF VIRUSES OR OTHER HARMFUL COMPONENTS. WE DO NOT WARRANT THE ACCURACY, COMPLETENESS, OR USEFULNESS OF ANY INFORMATION ON OUR SITE.</p>
@@ -134,8 +125,7 @@ import Legal from "../layouts/Legal.astro";
   </section>
 
   <!-- 10 -->
-  <section class="policy-section" id="liability">
-    <span class="section-num">Section 10</span>
+  <section id="liability">
     <h2>Limitation of Liability</h2>
     <p>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, HOWDYNET AND ITS OFFICERS, DIRECTORS, EMPLOYEES, AGENTS, AND AFFILIATES WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES — INCLUDING LOSS OF PROFITS, DATA, GOODWILL, OR BUSINESS INTERRUPTION — ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF OR INABILITY TO USE OUR WEBSITE OR SERVICES, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</p>
     <p>OUR TOTAL AGGREGATE LIABILITY TO YOU FOR ANY CLAIMS ARISING UNDER THESE TERMS SHALL NOT EXCEED THE GREATER OF (A) THE AMOUNT YOU PAID US IN THE TWELVE MONTHS PRECEDING THE CLAIM, OR (B) ONE HUNDRED DOLLARS ($100).</p>
@@ -143,37 +133,33 @@ import Legal from "../layouts/Legal.astro";
   </section>
 
   <!-- 11 -->
-  <section class="policy-section" id="indemnification">
-    <span class="section-num">Section 11</span>
+  <section id="indemnification">
     <h2>Indemnification</h2>
     <p>You agree to indemnify, defend, and hold harmless HowdyNET and its officers, directors, employees, and agents from and against any claims, liabilities, damages, losses, costs, and expenses (including reasonable attorneys' fees) arising out of or relating to: (a) your use of our website or Services; (b) your violation of these Terms; or (c) your violation of any rights of a third party.</p>
   </section>
 
   <!-- 12 -->
-  <section class="policy-section" id="governing-law">
-    <span class="section-num">Section 12</span>
+  <section id="governing-law">
     <h2>Governing Law & Dispute Resolution</h2>
     <p>These Terms are governed by and construed in accordance with the laws of the State of Texas, without regard to its conflict of law provisions. You consent to the exclusive jurisdiction of the state and federal courts located in Travis County, Texas for any disputes arising under these Terms.</p>
     <p>Before initiating formal legal proceedings, you agree to attempt to resolve any dispute informally by contacting us at the information below. We will make a good-faith effort to resolve the matter within 30 days.</p>
   </section>
 
   <!-- 13 -->
-  <section class="policy-section" id="changes">
-    <span class="section-num">Section 13</span>
+  <section id="changes">
     <h2>Changes to These Terms</h2>
     <p>We reserve the right to modify these Terms at any time. When we make material changes, we will update the "Last Updated" date and, where appropriate, notify active clients by email. Your continued use of our website after any changes constitutes your acceptance of the revised Terms. We encourage you to review this page periodically.</p>
   </section>
 
   <!-- 14 -->
-  <section class="policy-section" id="contact-tos">
-    <span class="section-num">Section 14</span>
+  <section id="contact-tos">
     <h2>Contact Us</h2>
     <p>Questions about these Terms? Reach out:</p>
   </section>
 
-  <div class="contact-card">
+  <div class="card card--navy" style="margin-top:32px;">
     <h3>HowdyNET Legal Contact</h3>
-    <p><strong style="color:#fff;">HowdyNET</strong></p>
+    <p><strong>HowdyNET</strong></p>
     <p>Austin, Texas, United States</p>
     <p>Email: <a href="mailto:support@howdynet.io">support@howdynet.io</a></p>
     <p>Website: <a href="https://www.howdynet.io">howdynet.io</a></p>

@@ -1,0 +1,64 @@
+---
+import Icon from "./Icon.astro";
+import Turnstile from "./Turnstile.astro";
+import { NEEDS, NEED_LABELS } from "../lib/forms";
+import type { IconName } from "./Icon.astro";
+
+interface Props {
+  variant?: "short" | "full";
+  dark?: boolean;
+  heading?: string;
+  intro?: string;
+}
+const { variant = "short", dark = false, heading, intro } = Astro.props;
+const icons: Record<string, IconName> = { coverage: "map-pin", internet: "globe", managed: "wifi", ranchhand: "box", quote: "tag", other: "headset" };
+const page = Astro.url.pathname.replace(/index\.html$/, "").replace(/\.html$/, "");
+---
+<form class:list={["form", { "form--dark": dark }]} action="/api/form" method="post" novalidate>
+  <input type="hidden" name="form-name" value="contact" />
+  <input type="hidden" name="page" value={page} />
+  {heading && <h2>{heading}</h2>}
+  {intro && <p class="lede">{intro}</p>}
+  <div class="grid-2">
+    <label class="field"><span>Name</span><input type="text" name="name" required autocomplete="name" placeholder="First and last" /></label>
+    <label class="field"><span>Business email</span><input type="email" name="email" required autocomplete="email" placeholder="you@yourbusiness.com" /></label>
+    {variant === "full" && (
+      <>
+        <label class="field"><span>Phone <span class="muted">(optional)</span></span><input type="tel" name="phone" autocomplete="tel" placeholder="(512) 000-0000" /></label>
+        <label class="field"><span>Business <span class="muted">(optional)</span></span><input type="text" name="company" autocomplete="organization" placeholder="Name and number of locations" /></label>
+      </>
+    )}
+  </div>
+  {variant === "full" ? (
+    <fieldset class="field" style="border:0;padding:0;margin:0;">
+      <legend style="font-size:0.875rem;font-weight:800;padding:0;margin-bottom:8px;">What do you need?</legend>
+      <div class="choices">
+        {NEEDS.map((n, i) => (
+          <label class="choice"><input type="radio" name="need" value={n} checked={i === 0} /><Icon name={icons[n]} size={18} />{NEED_LABELS[n]}</label>
+        ))}
+      </div>
+    </fieldset>
+  ) : (
+    <label class="field"><span>What do you need?</span>
+      <select name="need">
+        {NEEDS.map((n) => <option value={n}>{NEED_LABELS[n]}</option>)}
+      </select>
+    </label>
+  )}
+  {variant === "full" && (
+    <label class="field"><span>Service address</span><input type="text" name="address" autocomplete="street-address" placeholder="Street, city, ZIP, so we can check coverage" /></label>
+  )}
+  <label class="field">
+    <span>{variant === "full" ? "What is going on?" : "Address or details"} <span class="muted">(optional)</span></span>
+    <textarea name="message" rows="3" placeholder={variant === "full" ? "Current ISP, pain points, timeline, anything useful" : "Street address for a coverage check, or what is going on with your tech"}></textarea>
+  </label>
+  <p class="consent" data-test-note hidden></p>
+  <Turnstile theme={dark ? "dark" : "light"} />
+  <div class="form-error" role="alert"></div>
+  <div class="form-ok" role="status"></div>
+  <div class="row" style="justify-content:space-between;">
+    <span class="consent">Protected by Cloudflare Turnstile. We never sell your data.</span>
+    <button class:list={["btn", dark ? "btn-primary-blue" : "btn-primary"]} type="submit">Send it</button>
+  </div>
+</form>
+<script src="../scripts/forms.js"></script>

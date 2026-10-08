@@ -1,21 +1,17 @@
-// Form delivery endpoint for the three site forms (contact, custom-quote, network-results).
-// Flow: honeypot -> Turnstile siteverify -> whitelist fields -> KV (always) -> email (best effort).
+// Form delivery endpoint. Flow: honeypot -> Turnstile siteverify -> normalise/whitelist -> KV (always)
+// -> email (best effort). Accepts the single contact form and the two legacy form names.
 export const prerender = false;
 
 import type { APIRoute } from "astro";
 import { env } from "cloudflare:workers";
-import { FORMS, formatText, isEmail, pick } from "../../lib/forms";
+import { formatText, isEmail, normalise, subjectFor } from "../../lib/forms";
 
 const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const TO = "support@howdynet.io";
 const FROM = { email: "forms@mail.howdynet.io", name: "HowdyNET website" };
+const DONE = "/about?sent=1#contact";
 
-const baseHeaders = {
-  "Cache-Control": "no-store",
-  "X-Frame-Options": "SAMEORIGIN",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "X-Content-Type-Options": "nosniff",
-};
+const baseHeaders = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { ...baseHeaders, "Content-Type": "application/json" } });
@@ -25,11 +21,7 @@ function wantsJson(request: Request): boolean {
   return (request.headers.get("accept") ?? "").includes("application/json");
 }
 
-interface SiteverifyResult {
-  success: boolean;
-  hostname?: string;
-  "error-codes"?: string[];
-}
+interface SiteverifyResult { success: boolean; hostname?: string; "error-codes"?: string[] }
 
 async function verifyTurnstile(token: string, ip?: string): Promise<SiteverifyResult> {
   const secret = env.TURNSTILE_SECRET;
@@ -51,12 +43,11 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: "Invalid form submission." }, 400);
   }
 
-  const form = String(data.get("form-name") ?? "");
-  const allowed = FORMS[form];
-  if (!allowed) return json({ ok: false, error: "Unknown form." }, 400);
+  const sub = normalise(data);
+  if (!sub) return json({ ok: false, error: "Unknown form." }, 400);
 
   // Honeypot: bots fill the hidden "website" field. Pretend success, deliver nothing.
-  if (data.get("website")) return wantsJson(request) ? json({ ok: true }) : redirectBack(form);
+  if (data.get("website")) return wantsJson(request) ? json({ ok: true }) : redirect();
 
   const ip = request.headers.get("cf-connecting-ip") ?? undefined;
   const token = String(data.get("cf-turnstile-response") ?? "");
@@ -69,34 +60,34 @@ export const POST: APIRoute = async ({ request }) => {
   const hostOk = testKeys || /(^|\.)howdynet\.io$/.test(host);
   if (!verify.success || !hostOk) {
     console.warn("turnstile rejected", verify["error-codes"], host);
-    return json({ ok: false, error: "Verification failed — please try again." }, 403);
+    return json({ ok: false, error: "Verification failed. Please try again." }, 403);
   }
 
-  const fields = pick(data, allowed);
-  if (!isEmail(fields.email)) return json({ ok: false, error: "Please enter a valid business email." }, 400);
+  if (!sub.fields.name) return json({ ok: false, error: "Please tell us your name." }, 400);
+  if (!isEmail(sub.fields.email)) return json({ ok: false, error: "Please enter a valid business email." }, 400);
 
-  const id = `${form}/${new Date().toISOString()}-${crypto.randomUUID()}`;
+  const id = `contact/${new Date().toISOString()}-${crypto.randomUUID()}`;
   const ua = request.headers.get("user-agent");
-  await env.FORM_SUBMISSIONS.put(id, JSON.stringify({ form, ip, ua, fields }), { expirationTtl: 60 * 60 * 24 * 365 });
+  await env.FORM_SUBMISSIONS.put(id, JSON.stringify({ form: sub.form, ip, ua, fields: sub.fields, test: sub.test }), { expirationTtl: 60 * 60 * 24 * 365 });
 
   try {
     await env.EMAIL.send({
       to: TO,
       from: FROM,
-      replyTo: fields.email,
-      subject: `[howdynet.io] ${form}: ${fields["first-name"] ?? ""} ${fields["last-name"] ?? ""}`.trim(),
-      text: formatText(form, fields, id, { ip, ua }),
+      replyTo: sub.fields.email,
+      subject: subjectFor(sub),
+      text: formatText(sub, id, { ip, ua }),
     });
   } catch (err) {
     // Submission is already persisted in KV; do not fail the user.
     console.error("email send failed", id, err);
   }
 
-  return wantsJson(request) ? json({ ok: true, id }) : redirectBack(form);
+  return wantsJson(request) ? json({ ok: true, id }) : redirect();
 };
 
-function redirectBack(form: string): Response {
-  return new Response(null, { status: 303, headers: { ...baseHeaders, Location: `/?sent=${encodeURIComponent(form)}#contact` } });
+function redirect(): Response {
+  return new Response(null, { status: 303, headers: { ...baseHeaders, Location: DONE } });
 }
 
 export const GET: APIRoute = () =>

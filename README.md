@@ -64,6 +64,7 @@ If the token is missing a permission, the probe names it; edit the token in the 
 | `./howdy site` | Turnstile keys, KV, email destination, build, preview deploy, smoke test. |
 | `./howdy cutover` | Preview deploy, smoke test, then the Pages-to-Worker switch. |
 | `./howdy apex` | Move the internal Multi-Frames portal from the bare domain to `multi-frame.howdynet.io` (DNS, tunnel hostname, Access app), then redirect `howdynet.io` to `www`. `--portal-host` overrides the hostname. |
+| `./howdy admin` | Put `www.howdynet.io/admin` behind Cloudflare Access with Google sign-in for `support@howdynet.io` (prompts once for a Google OAuth client), write the Access AUD into `site/wrangler.jsonc`, deploy and verify. `--admin-email` adds more accounts. |
 | `./howdy github` | Push CI secrets/variables with `gh`, or print them. |
 | `./howdy selftest` | Unit checks for the DMARC builder and config patchers. |
 
@@ -83,6 +84,11 @@ API cannot see (the workspace's own settings), the command says so and lists it 
 
 ## Day two
 
+- **Copy, prices, images, extras:** sign in at `https://www.howdynet.io/admin` with
+  `support@howdynet.io` (Google). The page edits contact details, the announcement bar, the promo
+  popup, testimonials, the home page stats, prices, and image slots (upload or URL), and switches
+  the hidden game, Konami code, floating hat and promo popup on or off. Changes are live within
+  30 seconds; nothing is rebuilt or deployed.
 - **Site changes:** edit under `site/`, open a PR (CI type-checks, builds and enforces a size
   gate), merge to `main` and CI deploys with wrangler. Local preview: `cd site && npm run dev`.
 - **Zone changes:** edit under `terraform/`, open a PR (CI posts the plan), merge and the

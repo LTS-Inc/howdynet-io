@@ -1,48 +1,48 @@
 ---
+import Icon from "./Icon.astro";
+const links = [
+  ["/internet", "Internet"],
+  ["/managed-it", "Managed IT & LAN"],
+  ["/plans", "Plans"],
+  ["/ranchhand", "RanchHand"],
+  ["/network-test", "Network test"],
+  ["/about", "About"],
+] as const;
+const path = Astro.url.pathname.replace(/index\.html$/, "").replace(/\.html$/, "").replace(/\/$/, "") || "/";
+const { announcement } = Astro.locals.settings;
 ---
-<nav>
-  <a href="#" class="nav-logo"><span class="nl-howdy">Howdy</span><span class="nl-net">NET</span></a>
-  <div class="nav-right">
-    <ul class="nav-links">
-      <li><a href="#internet">Internet & WAN</a></li>
-      <li><a href="#lan">LAN Solutions</a></li>
-      <li><a href="#plans">Plans</a></li>
-      <li><a href="#ranchhand">RanchHand</a></li>
-      <li><a href="#led-av">Displays & AV</a></li>
-      <li class="nav-dropdown">
-        <a href="#about" class="nav-dropdown-toggle">About Us & Tools</a>
-        <div class="nav-dropdown-menu">
-          <a href="#about">
-            <span class="dd-icon dd-orange">🤠</span>
-            <span class="dd-label">
-              <span class="dd-label-main">About HowdyNET</span>
-              <span class="dd-label-sub">Our story · Team · Values</span>
-            </span>
-          </a>
-          <div class="nav-dropdown-divider"></div>
-          <a href="#free-diagnosis">
-            <span class="dd-icon dd-blue">🔵</span>
-            <span class="dd-label">
-              <span class="dd-label-main">Free Network Diagnosis</span>
-              <span class="dd-label-sub">Latency · Jitter · Bufferbloat · Score</span>
-            </span>
-          </a>
-          <div class="nav-dropdown-divider"></div>
-          <a href="#calculators">
-            <span class="dd-icon dd-orange">🟠</span>
-            <span class="dd-label">
-              <span class="dd-label-main">Value Calculators</span>
-              <span class="dd-label-sub">Vendor chaos · Downtime cost</span>
-            </span>
-          </a>
-        </div>
-      </li>
-      <li><a href="#contact">Contact</a></li>
+<header class="site-header">
+  {announcement.enabled && announcement.text && (
+    <div class="announce">
+      {announcement.text}
+      {announcement.href && announcement.linkText && <> <a href={announcement.href}>{announcement.linkText}</a></>}
+    </div>
+  )}
+  <nav class="site-nav container" aria-label="Primary" id="site-nav">
+    <a class="brand" href="/">Howdy<span>NET</span></a>
+    <ul class="nav-links" id="nav-links">
+      {links.map(([href, label]) => (
+        <li><a href={href} aria-current={path === href ? "page" : undefined}>{label}</a></li>
+      ))}
     </ul>
-    <a href="/coverage" class="nav-coverage">📍 Coverage</a>
-    <a href="#contact" class="nav-cta">Get Started</a>
-    <button class="nav-hamburger" onclick="toggleMenu()" aria-label="Menu">
-      <span></span><span></span><span></span>
+    <a class="btn btn-primary btn-sm nav-cta" href="/about#contact">Talk to us</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-links" aria-label="Menu">
+      <Icon name="menu" size={24} class="icon-menu" />
+      <Icon name="close" size={24} class="icon-close" />
     </button>
-  </div>
-</nav>
+  </nav>
+</header>
+<script>
+  const nav = document.getElementById("site-nav")!;
+  const btn = nav.querySelector<HTMLButtonElement>(".nav-toggle")!;
+  btn.addEventListener("click", () => {
+    const open = nav.classList.toggle("open");
+    btn.setAttribute("aria-expanded", String(open));
+  });
+  nav.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("a")) {
+      nav.classList.remove("open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+  });
+</script>

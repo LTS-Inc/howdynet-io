@@ -20,3 +20,8 @@ output "turnstile_secret" {
 output "security_txt_access_app_id" {
   value = cloudflare_zero_trust_access_application.security_txt.id
 }
+
+output "admin_access_aud" {
+  description = "Audience tag of the /admin Access application; the Worker checks tokens against it (vars.ACCESS_AUD)."
+  value       = var.admin_access ? cloudflare_zero_trust_access_application.site_admin[0].aud : ""
+}

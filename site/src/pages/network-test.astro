@@ -1,0 +1,24 @@
+---
+import Base from "../layouts/Base.astro";
+import NetworkTest from "../components/NetworkTest.astro";
+---
+<Base title="Free Network Quality Test · HowdyNET" description="Measure what matters in 20 seconds: latency, jitter, bufferbloat and consistency scored out of 100, in your browser. Nothing to install, nothing sent unless you choose to." ogTitle="Free network quality test" turnstile>
+  <section class="section section--navy" style="min-height:70vh;">
+    <div class="container split split--start">
+      <div class="stack">
+        <div>
+          <span class="eyebrow">Free network quality test</span>
+          <h1>Your real network score, in 20 seconds.</h1>
+        </div>
+        <p class="lede">ISPs sell a speed number. Video calls, card terminals and cameras care about latency, jitter and what happens under load. This runs in your browser, nothing to install.</p>
+        <ol style="padding-left:22px;line-height:1.8;">
+          <li>Baseline: idle latency to a well-known endpoint.</li>
+          <li>Load: we saturate the link and measure again.</li>
+          <li>Score: latency, jitter, bufferbloat and consistency out of 100.</li>
+        </ol>
+        <div class="card card--glass" style="padding:16px 18px;"><p>Nothing leaves your browser unless you choose to send the results. Your approximate location and ISP come from a public IP lookup and are shown only to you.</p></div>
+      </div>
+      <NetworkTest />
+    </div>
+  </section>
+</Base>

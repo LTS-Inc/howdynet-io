@@ -4,3 +4,9 @@ declare namespace Cloudflare {
     TURNSTILE_SECRET: string;
   }
 }
+
+declare namespace App {
+  interface Locals {
+    settings: import("./lib/settings").SiteSettings;
+  }
+}

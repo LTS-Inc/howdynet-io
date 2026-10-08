@@ -1,0 +1,90 @@
+---
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icon.astro";
+import ContactForm from "../components/ContactForm.astro";
+import Testimonials from "../components/Testimonials.astro";
+const { contact, images } = Astro.locals.settings;
+const about = images.about;
+---
+<Base title="About HowdyNET · Contact" description="Engineers and operators in Austin, Texas who got tired of the vendor blame game. One accountable partner for internet, networks and IT. Call (512) 200-4744." turnstile>
+  <section class="hero hero--burnt">
+    <div class="container split">
+      <div>
+        <span class="eyebrow">About HowdyNET</span>
+        <h1>Engineers and operators who got tired of the blame game.</h1>
+        <p class="lede">We spent years deploying technology alongside the biggest names in IT and telecom, and cleaning up after them. HowdyNET is the company we wished existed: one accountable partner, real humans, no markup games. {contact.hq}, serving the {contact.area}. Part of LTS, Longoria Technology Solutions.</p>
+        <div class="row" style="margin-top:20px;">
+          <span class="chip">Licensed WISP</span><span class="chip">Net neutral</span><span class="chip">No contracts</span><span class="chip">Hardware at cost</span>
+        </div>
+      </div>
+      {about.src ? (
+        <div class="hero-image"><img src={about.src} alt={about.alt} width="640" height="480" /></div>
+      ) : (
+        <div class="hero-hats"><img class="hat" src="/img/hat-orange-640.webp" alt="" width="300" height="300" /><img class="hat" src="/img/hat-blue-640.webp" alt="" width="300" height="300" /></div>
+      )}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">How we work</span>
+        <h2>Real people. Real accountability.</h2>
+      </div>
+      <div class="grid-3">
+        <div class="card"><Icon name="phone" size={28} /><h3>We answer the phone</h3><p>Not a ticket system, not a bot. A person who knows your setup and cares about fixing it fast.</p></div>
+        <div class="card"><Icon name="shield" size={28} /><h3>We own the outcome</h3><p>When something breaks we do not point at other vendors. We fix it. One accountable partner.</p></div>
+        <div class="card"><Icon name="users" size={28} /><h3>We tell you the truth</h3><p>If we are not the right fit, we say so. Honest advice over a bad contract, every time.</p></div>
+        <div class="card"><Icon name="tag" size={28} /><h3>Hardware at cost</h3><p>Most IT companies mark up gear 20 to 40 percent. Our clients pay our procurement price.</p></div>
+        <div class="card"><Icon name="activity" size={28} /><h3>We learn your network, then protect it</h3><p>Every managed client gets a traffic fingerprint. Unknown traffic is blocked before it becomes a problem.</p></div>
+        <div class="card"><Icon name="building" size={28} /><h3>Small enough to care</h3><p>Big enough to handle anything. Small enough that your business matters to us personally.</p></div>
+      </div>
+      <h3 style="margin-top:40px;">We work best with</h3>
+      <ul class="check-list" style="margin-top:12px;max-width:640px;">
+        <li><Icon name="check" size={18} />Growing businesses tired of managing multiple vendors</li>
+        <li><Icon name="check" size={18} />Multi-location operators who need consistency everywhere</li>
+        <li><Icon name="check" size={18} />Teams that value quality and reliability over bargain pricing</li>
+        <li><Icon name="check" size={18} />Businesses expanding into new markets across the US, Mexico, Canada and Europe</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section section--cream2" id="coverage">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow">Coverage</span>
+        <h2>Is HowdyNET internet available at your address?</h2>
+        <p>We are Texas-based and expanding. Send your address with the form below and we tell you straight: served today, coming soon, or RanchHand on your current ISP in the meantime.</p>
+      </div>
+      <div class="row">
+        <a class="btn btn-primary-blue" href="#contact">Check my address</a>
+        <a class="btn btn-ghost" href="/ranchhand">RanchHand works on any ISP</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head"><h2>What clients say</h2></div>
+      <Testimonials />
+    </div>
+  </section>
+
+  <section class="section" id="contact">
+    <div class="container split split--start">
+      <div>
+        <span class="eyebrow">Contact</span>
+        <h2>Say howdy. A person replies the same business day.</h2>
+        <p class="lede" style="margin-top:12px;">One form for everything: coverage checks, quotes, questions, or sending your network test results. Pick what you need and we route it to the right person.</p>
+        <div class="contact-rows" style="margin-top:28px;">
+          <a class="contact-row" href={`tel:${contact.phone.replace(/\D/g, "")}`}><Icon name="phone" /><span><b>{contact.phone}</b><span class="muted">{contact.hours}</span></span></a>
+          <a class="contact-row" href={`mailto:${contact.email}`}><Icon name="mail" /><span><b>{contact.email}</b><span class="muted">Same business day reply</span></span></a>
+          <div class="contact-row"><Icon name="map-pin" /><span><b>{contact.hq}</b><span class="muted">{contact.area}</span></span></div>
+        </div>
+      </div>
+      <div class="card card--lg">
+        <ContactForm variant="full" />
+      </div>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,71 @@
+---
+import Turnstile from "./Turnstile.astro";
+import { TEST_FIELDS } from "../lib/forms";
+const bars = [["lat", "Latency", 30], ["jit", "Jitter", 20], ["bloat", "Bufferbloat", 35], ["con", "Consistency", 15]] as const;
+---
+<div class="nt" id="network-test">
+  <div class="nt-steps" aria-label="Test progress">
+    <span class="bstep active" id="bstep-idle">Ready</span>
+    <span class="bstep" id="bstep-baseline">Baseline</span>
+    <span class="bstep" id="bstep-load">Load</span>
+    <span class="bstep" id="bstep-grade">Score</span>
+    <span class="bstep" id="bstep-done">Done</span>
+  </div>
+  <div class="nt-top">
+    <div class="qs-ring" id="qs-ring" role="img" aria-label="Quality score">
+      <div class="qs-inner"><div class="qs-score" id="qs-score">0</div><div class="qs-verdict" id="qs-verdict">Not run yet</div></div>
+    </div>
+    <div class="qs-bars">
+      {bars.map(([id, label, max]) => (
+        <div class="qs-bar">
+          <label><span>{label}</span><span id={`qsp-${id}`}>0 / {max}</span></label>
+          <div class="track"><div class="fill" id={`qsb-${id}`}></div></div>
+          <div class="small muted" id={`qsd-${id}`}></div>
+        </div>
+      ))}
+    </div>
+  </div>
+  <div class="nt-metrics">
+    <div class="metric"><span>Idle latency</span><b id="b-baseline">0</b> <small>ms</small></div>
+    <div class="metric"><span>Under load</span><b id="b-loaded">0</b> <small>ms</small></div>
+    <div class="metric"><span>Jitter</span><b id="b-jitter">0</b> <small>ms</small></div>
+  </div>
+  <div class="b-explain" id="b-explain"><b>What this means:</b> <span id="b-explain-text"></span></div>
+  <div class="nt-eff">
+    <label class="field"><span>Speed your ISP sold you (Mbps)</span><input type="number" id="isp-speed" inputmode="numeric" min="1" placeholder="e.g. 500" /></label>
+    <div class="field"><span>Effective rate after quality score</span><div class="big"><span id="b-eff-num">0</span><small>Mbps</small></div></div>
+    <button class="btn btn-primary-blue" type="button" id="b-run-btn">Run the test</button>
+  </div>
+  <p class="b-status" id="b-status" aria-live="polite">Takes about 20 seconds. Nothing to install.</p>
+  <p class="small muted" id="b-eff-desc"></p>
+  <div class="b-contact" id="b-contact">
+    <div class="row">
+      <p class="b-contact-copy">Want a human to read this? Send the results with your email and we reply with a free evaluation.</p>
+      <button class="btn btn-primary" type="button" id="b-send-open">Send my results</button>
+    </div>
+  </div>
+  <div class="b-send" id="b-send">
+    <form class="form form--dark" action="/api/form" method="post" novalidate>
+      <input type="hidden" name="form-name" value="contact" />
+      <input type="hidden" name="need" value="other" />
+      <input type="hidden" name="page" value="/network-test" />
+      {TEST_FIELDS.map((f) => <input type="hidden" name={f} />)}
+      <div class="rf-grid">
+        <label class="field"><span>Name</span><input type="text" name="name" required autocomplete="name" /></label>
+        <label class="field"><span>Business email</span><input type="email" name="email" required autocomplete="email" /></label>
+        <label class="field"><span>Business <span class="muted">(optional)</span></span><input type="text" name="company" autocomplete="organization" /></label>
+      </div>
+      <label class="field"><span>Anything we should know? <span class="muted">(optional)</span></span><textarea name="message" rows="2" placeholder="Current ISP, what feels slow, how many people"></textarea></label>
+      <p class="consent" data-test-note hidden></p>
+      <Turnstile theme="dark" />
+      <div class="form-error" role="alert"></div>
+      <div class="form-ok" role="status"></div>
+      <div class="row" style="justify-content:space-between;">
+        <span class="consent">Your score, latency, jitter, bufferbloat, device type and detected ISP are sent with your message.</span>
+        <button class="btn btn-primary" type="submit">Send for a free evaluation</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script src="../scripts/network-test.js"></script>
+<script src="../scripts/forms.js"></script>

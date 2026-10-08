@@ -67,3 +67,28 @@ variable "apex_redirect" {
   type        = bool
   default     = false
 }
+
+variable "admin_access" {
+  description = "Create the Google identity provider and Access application for www/admin. `howdy admin` turns this on once it has the Google OAuth client."
+  type        = bool
+  default     = false
+}
+
+variable "google_client_id" {
+  description = "OAuth client ID of the Google Cloud credential used for Access sign-in on /admin."
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "OAuth client secret for the Google credential above."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "admin_emails" {
+  description = "Google accounts allowed to open www/admin."
+  type        = list(string)
+  default     = ["support@howdynet.io"]
+}

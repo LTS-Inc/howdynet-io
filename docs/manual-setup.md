@@ -115,26 +115,36 @@ If every real response carries HSTS and only that redirect lacks it, archive the
 
 ## Website (`site/`)
 
-Astro 7 + `@astrojs/cloudflare`, fully prerendered except `src/pages/api/form.ts`, deployed with
-wrangler to the Worker `howdynet-www`. It is a straight port of the previous hand-written
-`index.html`, `privacy.html` and `terms.html`: same markup, copy and scripts, with these fixes:
+Astro 7 + `@astrojs/cloudflare`, deployed with wrangler to the Worker `howdynet-www`. The site is
+a small multi-page site (`/`, `/internet`, `/managed-it`, `/plans`, `/ranchhand`, `/network-test`,
+`/about`, `/privacy`, `/terms`) built from the approved redesign mocks. Pages render on the Worker
+per request (`output: "server"`) so that copy, prices and images edited on `/admin` show up
+without a rebuild; the legal pages and 404 are prerendered. Workers Static Assets serves
+`dist/client`; `assets.run_worker_first` sends page navigations to the Worker and leaves
+`/_astro`, `/img`, the favicon, robots and sitemaps to the asset layer.
 
-- The two hat PNGs were embedded as base64 eight times (about 3.7 MB of a 4 MB page). They are
-  now `src/assets/hat-*.png`, optimized at build time to two 24 KB WebP files.
-- The three forms (`contact`, `custom-quote`, `network-results`) carried Netlify Forms markup and
-  posted to `/`, which had no handler on Cloudflare. They now post to `/api/form`, which checks a
-  honeypot, verifies Turnstile, whitelists fields, stores every submission in KV
-  (`FORM_SUBMISSIONS`) and emails it to `support@howdynet.io` via the `EMAIL` send binding.
-  The client JS now reports failures instead of always showing success.
-- Legal pages share a layout, use the site font (Nunito), say Cloudflare instead of Netlify, name
-  the ipapi.co geolocation call, and list `support@howdynet.io` as the contact.
-- `robots.txt`, a sitemap, a 404 page, `_headers` (Referrer-Policy, Permissions-Policy,
-  X-Frame-Options; HSTS and nosniff come from the zone setting) and `_redirects`
-  (`/coverage` -> `/#internet` until a coverage page exists; `.html` URLs -> clean URLs).
-- Source bugs fixed: a duplicated `#popup` dialog inside the footer, an unclosed `.isp-grid`
-  div, a duplicated "Custom Business App" checkbox.
-
-`scripts/migrate-site.py` is the one-off splitter used for the port, kept for auditability.
+- `src/lib/settings.ts` is the content model: defaults for everything editable, the KV key
+  (`settings/site` in `FORM_SUBMISSIONS`), validation (`normalize`), a 30-second per-isolate
+  cache and the form-to-settings mapping. `src/middleware.ts` loads it into `Astro.locals.settings`
+  for every request and adds the security headers to Worker responses (`public/_headers` covers
+  static assets only).
+- `/admin` (`src/pages/admin/index.astro`, `src/pages/api/admin/settings.ts`) is protected twice:
+  Cloudflare Access (Google IdP, `terraform/admin.tf`) in front of the path, and the Worker's own
+  check of the `Cf-Access-Jwt-Assertion` token in `src/lib/access.ts` (RS256 against the team's
+  JWKS, `aud` = `ACCESS_AUD`, email in `ADMIN_EMAILS`). Uploaded images live in KV under
+  `media/<slot>` and are served by `src/pages/media/[slot].ts`.
+- The four optional extras (hidden game, Konami code, floating hat, promo popup) live in
+  `src/scripts/extras.js`; `Base.astro` includes it only when a flag is on, with the config in a
+  JSON script tag. Pages carry no extra markup or CSS while they are off.
+- Forms: one contact schema (`src/lib/forms.ts`) used by the short form on the home page, the full
+  form on `/about` (`?need=` preselects the radio) and the results form on `/network-test`. The old
+  `custom-quote` and `network-results` field names are still accepted and normalised. The endpoint
+  (`src/pages/api/form.ts`) checks a honeypot, verifies Turnstile, stores every submission in KV
+  and emails it to `support@howdynet.io`. Completed network tests are kept in `sessionStorage`
+  (`howdynet.test`) and attached automatically on `/about`.
+- `public/_redirects`: `/coverage` -> `/about#coverage`, `.html` URLs -> clean URLs. Old one-page
+  anchors (`/#plans`, `/#free-diagnosis`, ...) forward to the new pages from an inline script on
+  the home page.
 
 ### Local development
 
@@ -142,7 +152,7 @@ wrangler to the Worker `howdynet-www`. It is a straight port of the previous han
 cd site
 npm ci
 cp .env.example .env            # PUBLIC_TURNSTILE_SITEKEY (test key by default)
-cp .dev.vars.example .dev.vars  # TURNSTILE_SECRET (test secret by default)
+cp .dev.vars.example .dev.vars  # TURNSTILE_SECRET (test secret by default); add ACCESS_DEV_BYPASS_EMAIL=support@howdynet.io to open /admin locally
 npx wrangler types              # generates worker-configuration.d.ts (gitignored)
 npm run check && npm run build
 npm run preview                 # wrangler dev on the built bundle (dist/server/wrangler.json); email sends are simulated
@@ -152,7 +162,7 @@ Form endpoint smoke test (Astro's CSRF check requires a same-origin `Origin` hea
 
 ```sh
 curl -s -X POST http://127.0.0.1:8787/api/form -H 'Origin: http://127.0.0.1:8787' -H 'Accept: application/json' \
-  --data 'form-name=contact&cf-turnstile-response=XXXX.DUMMY.TOKEN.XXXX&first-name=Test&last-name=User&email=test@example.com'
+  --data 'form-name=contact&cf-turnstile-response=XXXX.DUMMY.TOKEN.XXXX&name=Test+User&email=test@example.com&need=coverage'
 npx wrangler kv key list --binding FORM_SUBMISSIONS --local
 ```
 
@@ -171,6 +181,15 @@ npx wrangler kv key list --binding FORM_SUBMISSIONS --local
 4. **GitHub:** secrets `CLOUDFLARE_WORKERS_API_TOKEN`, `TURNSTILE_SECRET`
    (`terraform output -raw turnstile_secret`); variable `TURNSTILE_SITEKEY`
    (`terraform output turnstile_sitekey`). `CLOUDFLARE_ACCOUNT_ID` is shared with Terraform.
+5. **Admin sign-in** (`./howdy admin` does all of this): create a Google OAuth client (Google
+   Cloud Console > APIs & Services > Credentials > OAuth client ID > Web application, redirect URI
+   `https://lts-inc.cloudflareaccess.com/cdn-cgi/access/callback`), apply Terraform with
+   `admin_access = true`, `google_client_id`, `google_client_secret` (and `admin_emails` if more
+   than `support@howdynet.io`), then put `terraform output -raw admin_access_aud` into
+   `site/wrangler.jsonc` as `vars.ACCESS_AUD` next to `ACCESS_TEAM_DOMAIN` and `ADMIN_EMAILS`,
+   build and deploy. Anonymous requests to `/admin` must then redirect to the Access login, and
+   a Google account outside the list must be refused. CI needs `ADMIN_ACCESS=true` plus the
+   `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` secrets for Terraform.
 
 ### Cutover of www.howdynet.io from Pages to the Worker
 
@@ -199,9 +218,9 @@ curl -si https://www.howdynet.io/.well-known/security.txt | head -3   # still Cl
 
 ### Known follow-ups
 
-- `coverage.html` was never provided; `/coverage` redirects to `/#internet` until a page exists.
-- The cookie banner is cosmetic: no analytics script is loaded, so consent gates nothing.
-- The `#popup` dialog's `closePopup()` handler was never defined in the original and the dialog is
-  never opened; harmless dead markup, kept verbatim.
-- No Content-Security-Policy: the page has seven inline scripts and inline handlers. Add a
-  nonce-based policy only after moving those into bundled modules.
+- Testimonials ship with bracketed `[NAME]`, `[TITLE]`, `[COMPANY]` placeholders until clients
+  approve attribution; replace them on `/admin`.
+- The site sets only strictly necessary cookies; there is no analytics script and no cookie banner.
+- No Content-Security-Policy yet. The only inline scripts left are the JSON-LD block, the
+  anchor-forward snippet on the home page and the extras config; a nonce-based policy is now
+  feasible.

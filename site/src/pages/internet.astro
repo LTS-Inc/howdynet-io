@@ -1,0 +1,74 @@
+---
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icon.astro";
+import InternetPlans from "../components/InternetPlans.astro";
+import RanchHandBox from "../components/RanchHandBox.astro";
+import { money } from "../lib/settings";
+const { pricing } = Astro.locals.settings;
+---
+<Base title="Business Internet in Austin · HowdyNET" description="Licensed wireless ISP for business. Symmetric speeds, no caps, no throttling, installed in days. Plans from $79/mo, month to month, with a person who answers." ogTitle="Business internet from a licensed WISP">
+  <section class="hero hero--navy">
+    <div class="container split">
+      <div>
+        <span class="eyebrow">Blue hat · Internet &amp; WAN</span>
+        <h1>Your connection to the world.</h1>
+        <p class="lede">The big ISPs sell you a number, bury you in a support queue and blame your router when things go wrong. We are a licensed ISP that manages your connection end to end. When something breaks at 2 am, a human who knows your setup answers the phone.</p>
+        <div class="row">
+          <a class="btn btn-primary-blue btn-lg" href="/about?need=internet#contact">Check my address</a>
+          <a class="btn btn-ghost btn-lg" href="#plans">See internet plans</a>
+        </div>
+        <p class="small" style="margin-top:16px;color:var(--on-dark-3);">From {money(pricing.internet.basic)}/mo · symmetric · no caps · month to month</p>
+      </div>
+      <div class="hero-hats"><img class="hat" src="/img/hat-blue-640.webp" alt="" width="300" height="300" /></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow eyebrow--blue">What we do</span><h2>Internet, done by the people who answer for it.</h2></div>
+      <div class="grid-4">
+        <div class="card card--blue"><Icon name="globe" size={28} /><h3>Business internet</h3><p>Local internet done right. Small enough to care, big enough to matter. Managed from day one through every outage.</p></div>
+        <div class="card card--blue"><Icon name="box" size={28} /><h3>Fiber and Ethernet cabling</h3><p>Clean, labeled, professional runs. Trust the cables and their labels. Done right the first time.</p></div>
+        <div class="card card--blue"><Icon name="headset" size={28} /><h3>ISP and vendor coordination</h3><p>We deal with the telecoms so you do not have to. One call to us handles everything.</p></div>
+        <div class="card card--blue"><Icon name="cpu" size={28} /><h3>Hardware, software, custom dev</h3><p>Right-sized equipment and custom software for your actual needs. No markup games, no overselling.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--cream2" id="plans">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow eyebrow--blue">Internet plans</span><h2>Straight-up internet. No games, no caps.</h2><p>We own the network and set the rules. Net neutral, no throttling, no hidden fees. Wireless-first deployment means you are up in days, not months.</p></div>
+      <InternetPlans />
+    </div>
+  </section>
+
+  <section class="section section--navy">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Why our internet is different</span><h2>We are not a big ISP. We are your ISP.</h2><p>A licensed WISP owns the infrastructure, writes the rules and answers to you instead of shareholders. No throttling because a streaming service did not pay us. No selling your browsing data. No pretending the outage is not happening.</p></div>
+      <div class="grid-3">
+        <div class="card card--glass"><Icon name="shield" size={28} /><h3>Net neutrality</h3><p>We never throttle, cap or sell your data. No traffic shaping, no priority lanes for paying partners. Every byte treated equally.</p></div>
+        <div class="card card--glass"><Icon name="wifi" size={28} /><h3>Up in days, not months</h3><p>All-wireless deployment for fast, clean installs with zero trenching, or a hardened Ethernet option when you need the extra reliability.</p></div>
+        <div class="card card--glass"><Icon name="activity" size={28} /><h3>We do not sell you a number</h3><p>Big ISPs advertise "up to" speeds that collapse under load. We engineer for consistent, low-latency bandwidth that performs under pressure.</p></div>
+        <div class="card card--glass"><Icon name="layers" size={28} /><h3>No digging, lighter footprint</h3><p>Fiber ISPs trench your parking lot and leave a mess. Wireless-first means zero ground disruption and no lasting damage to your property.</p></div>
+        <div class="card card--glass"><Icon name="lock" size={28} /><h3>We fingerprint your network, then defend it</h3><p>Every HowdyNET network gets a behavioral baseline. Anything outside that fingerprint is flagged and blocked, known threat or not.</p></div>
+        <div class="card card--glass"><Icon name="phone" size={28} /><h3>One number</h3><p>A person who already knows your setup picks up, because we built it and documented it.</p></div>
+      </div>
+      <p class="pullquote" style="margin-top:40px;">Rules are for big ISPs. Internet connections are not.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container"><RanchHandBox /></div>
+  </section>
+
+  <section class="section section--cream2">
+    <div class="container split">
+      <div>
+        <span class="eyebrow eyebrow--blue">Coverage</span>
+        <h2>Is HowdyNET available at your address?</h2>
+        <p class="lede" style="margin-top:12px;">Texas-based and expanding. Send your address and we tell you straight: served today, coming soon, or RanchHand on your current ISP in the meantime.</p>
+      </div>
+      <div class="row"><a class="btn btn-primary-blue btn-lg" href="/about?need=coverage#contact">Check my address</a><a class="btn btn-ghost btn-lg" href="/network-test">Test my current connection</a></div>
+    </div>
+  </section>
+</Base>

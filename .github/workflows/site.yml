@@ -50,8 +50,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Size gate (whole dist under 2 MB; the old page alone was 4 MB)
-        run: test "$(du -sk dist | cut -f1)" -lt 2048
+      - name: Size gate (static assets under 2 MB; the old page alone was 4 MB)
+        run: test "$(du -sk dist/client | cut -f1)" -lt 2048
 
       - name: Deploy to Cloudflare Workers
         # WWW_CUTOVER is set by `howdy up` once the custom domain is bound; before that a deploy

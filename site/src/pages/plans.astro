@@ -1,0 +1,54 @@
+---
+import Base from "../layouts/Base.astro";
+import InternetPlans from "../components/InternetPlans.astro";
+import ManagedMatrix from "../components/ManagedMatrix.astro";
+import RanchHandBox from "../components/RanchHandBox.astro";
+import Calculators from "../components/Calculators.astro";
+---
+<Base title="Plans and Pricing · HowdyNET" description="Every HowdyNET plan on one page: business internet from $79/mo, managed IT and LAN from $99/mo, RanchHand gateway $79/mo. Month to month, hardware at our cost." ogTitle="HowdyNET plans and pricing">
+  <section class="hero hero--home section--tight">
+    <div class="container">
+      <span class="eyebrow">Plans</span>
+      <h1>Honest prices, listed once.</h1>
+      <p class="lede">Every plan is month to month. Bundle, adjust scope, add locations and we build a transparent quote. Hardware is always at our procurement cost.</p>
+      <div class="row">
+        <a class="btn btn-ghost" href="#internet">Internet</a>
+        <a class="btn btn-ghost" href="#managed">Managed IT</a>
+        <a class="btn btn-ghost" href="#ranchhand">RanchHand</a>
+        <a class="btn btn-ghost" href="#calculators">Calculators</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="internet">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow eyebrow--blue">Business internet</span><h2>Symmetric, unmetered, month to month.</h2></div>
+      <InternetPlans />
+    </div>
+  </section>
+
+  <section class="section section--cream2" id="managed">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Managed IT &amp; LAN</span><h2>From keeping the registers online to a full IT department.</h2><p>Four tiers, one table. Pick the scope you need today and move up when you grow.</p></div>
+      <ManagedMatrix />
+    </div>
+  </section>
+
+  <section class="section" id="ranchhand">
+    <div class="container"><RanchHandBox /></div>
+  </section>
+
+  <section class="section section--cream2">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Calculators</span><h2>What the status quo costs you.</h2><p>Two quick estimates: the time you spend herding vendors, and what an outage costs your business.</p></div>
+      <Calculators />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split">
+      <div><span class="eyebrow">Custom quote</span><h2>Multiple locations, higher speeds or a custom SLA?</h2></div>
+      <div class="row"><a class="btn btn-primary btn-lg" href="/about?need=quote#contact">Build a custom quote</a><a class="btn btn-ghost btn-lg" href="/network-test">Run the network test</a></div>
+    </div>
+  </section>
+</Base>

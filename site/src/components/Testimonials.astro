@@ -1,0 +1,22 @@
+---
+const { testimonials, images } = Astro.locals.settings;
+const slots = ["testimonial-1", "testimonial-2", "testimonial-3"] as const;
+---
+<div class="grid-3">
+  {testimonials.map((t, i) => {
+    const img = images[slots[i]];
+    return (
+      <figure class="quote" style="margin:0;">
+        <blockquote>{t.quote}</blockquote>
+        <figcaption>
+          <footer>
+            <span class="avatar">
+              {img?.src ? <img src={img.src} alt={img.alt} width="44" height="44" loading="lazy" /> : <img class="hat" src={i % 2 ? "/img/hat-blue-160.webp" : "/img/hat-orange-160.webp"} alt="" width="28" height="28" loading="lazy" />}
+            </span>
+            <span><b>{t.name}, {t.title}</b>{t.company}</span>
+          </footer>
+        </figcaption>
+      </figure>
+    );
+  })}
+</div>

@@ -1,0 +1,31 @@
+---
+import Icon from "./Icon.astro";
+import { money } from "../lib/settings";
+interface Props { dark?: boolean }
+const { dark = false } = Astro.props;
+const p = Astro.locals.settings.pricing.internet;
+const plans = [
+  { key: "basic", name: "Basic", speed: "25 Mbps symmetric", price: p.basic, tagline: "Small office, POS and email, done right.", popular: false,
+    features: ["25 Mbps upload and download", "Net neutral, zero throttling", "No data caps. Ever.", "Wireless-first deployment", "Business-grade router included", "Email and phone support"] },
+  { key: "standard", name: "Standard", speed: "100 Mbps symmetric", price: p.standard, tagline: "Most businesses: calls, cameras, cloud apps.", popular: true,
+    features: ["100 Mbps upload and download", "Net neutral, zero throttling", "No data caps. Ever.", "Managed router with QoS tuning", "Priority phone and email support", "99.9% uptime SLA", "Dedicated account manager"] },
+  { key: "business", name: "Business", speed: "250+ Mbps symmetric", price: p.business, tagline: "Multi-location, heavy video, hard SLAs.", popular: false,
+    features: ["250 Mbps+ upload and download", "Net neutral, zero throttling", "No data caps. Ever.", "Wireless plus hardened Ethernet option", "Managed router, QoS and LTE failover", "24/7 priority support", "99.99% uptime SLA", "Dedicated account manager"] },
+];
+---
+<div class="grid-3">
+  {plans.map((pl) => (
+    <article class:list={["plan", "plan--blue", { "plan--popular": pl.popular, "plan--dark": dark }]}>
+      {pl.popular && <span class="badge badge--blue">Most popular</span>}
+      <div class="plan-name">{pl.name}</div>
+      <div class="plan-speed">{pl.speed}</div>
+      <div class="price"><b>{money(pl.price)}</b><span>/mo</span></div>
+      <p class="plan-tagline">{pl.tagline}</p>
+      <ul class="check-list check-list--blue">
+        {pl.features.map((f) => <li><Icon name="check" size={18} />{f}</li>)}
+      </ul>
+      <a class:list={["btn", dark ? "btn-primary-blue" : "btn-accent"]} href={`/about?need=internet#contact`}>Get {pl.name}</a>
+    </article>
+  ))}
+</div>
+<p class="small muted" style="margin-top:16px;">Every plan: professional wireless installation, symmetric speeds, month to month, hardware at our procurement cost. Need more locations, higher speeds or a custom SLA? <a href="/about?need=quote#contact">Ask for a custom quote</a>.</p>

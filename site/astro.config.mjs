@@ -5,12 +5,12 @@ import sitemap from "@astrojs/sitemap";
 
 export default defineConfig({
   site: "https://www.howdynet.io",
-  // Fully prerendered except src/pages/api/form.ts (prerender = false).
-  output: "static",
+  // Pages render on the Worker per request so the copy, images and prices edited on /admin
+  // (stored in KV) show up without a rebuild. Legal pages and 404 opt back in to prerendering.
+  output: "server",
   // No server sessions; prevents the adapter from requiring a SESSION KV binding.
   session: false,
   adapter: cloudflare({ imageService: "compile" }),
-  integrations: [sitemap()],
-  // privacy.html / terms.html -> served at /privacy and /terms by Workers static assets.
+  integrations: [sitemap({ filter: (page) => !page.includes("/admin") })],
   build: { format: "file" },
 });

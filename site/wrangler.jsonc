@@ -5,9 +5,13 @@
   "compatibility_date": "2026-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "./dist",
+    "directory": "./dist/client",
     "binding": "ASSETS",
-    "not_found_handling": "404-page"
+    "not_found_handling": "404-page",
+    // Pages render on the Worker. Without this, browser navigations to a path that is not a
+    // static file would get the asset 404 page instead of reaching the Worker. The excluded paths
+    // are static files and the legacy URLs that public/_redirects answers.
+    "run_worker_first": ["/*", "!/_astro/*", "!/img/*", "!/favicon.svg", "!/robots.txt", "!/sitemap-*.xml", "!/sitemap-index.xml", "!/coverage", "!/coverage.html", "!/privacy.html", "!/terms.html", "!/index.html"]
   },
   // This is the SOURCE config. `astro build` resolves it into dist/server/wrangler.json, which is
   // what every deploy uses (`wrangler deploy -c dist/server/wrangler.json`). `howdy site` deploys

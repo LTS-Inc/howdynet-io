@@ -1,0 +1,139 @@
+---
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icon.astro";
+import { money } from "../lib/settings";
+const { pricing, contact } = Astro.locals.settings;
+---
+<Base title="Managed IT, Wi-Fi, Cameras and AV · HowdyNET" description="Everything inside your four walls: Wi-Fi design, cameras and door access, help desk, AV, LED walls, digital signage and custom apps. Managed plans from $99/mo with hardware at our cost." ogTitle="Managed IT and LAN by HowdyNET">
+  <section class="hero hero--burnt">
+    <div class="container split">
+      <div>
+        <span class="eyebrow">Orange hat · Managed IT &amp; LAN</span>
+        <h1>Everything inside your four walls.</h1>
+        <p class="lede">Once the internet is in, we make sure everything inside your space runs flawlessly: Wi-Fi, cameras, AV, IT support and every piece of gear your team depends on.</p>
+        <div class="row">
+          <a class="btn btn-primary btn-lg" href="/about?need=managed#contact">Talk to us</a>
+          <a class="btn btn-ghost btn-lg" href="/plans#managed">Managed plans</a>
+        </div>
+        <p class="small" style="margin-top:16px;color:var(--on-dark-3);">From {money(pricing.managed.pos)}/mo · month to month · hardware at our cost</p>
+      </div>
+      <div class="hero-hats"><img class="hat" src="/img/hat-orange-640.webp" alt="" width="300" height="300" /></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Services</span><h2>What we run for you.</h2></div>
+      <div class="grid-4">
+        <div class="card"><Icon name="wifi" size={28} /><h3>Wi-Fi design and engineering</h3><p>No dead zones, no excuses. Coverage designed for your actual space.</p></div>
+        <div class="card"><Icon name="camera" size={28} /><h3>Cameras and access control</h3><p>Enterprise-grade managed systems, installed, monitored and supported.</p></div>
+        <div class="card"><Icon name="headset" size={28} /><h3>Managed IT and help desk</h3><p>24/7 monitoring and a real human to call when something breaks.</p></div>
+        <div class="card"><Icon name="monitor" size={28} /><h3>Audio and video</h3><p>Conference rooms, lobbies, restaurants. AV that makes an impression and works every time.</p></div>
+        <div class="card"><Icon name="zap" size={28} /><h3>AI and business automation</h3><p>Automations that remove your most repetitive work, from client intake to reporting to system orchestration.</p></div>
+        <div class="card"><Icon name="users" size={28} /><h3>Vendor consolidation</h3><p>Fewer vendors, lower costs, less confusion, more done.</p></div>
+        <div class="card"><Icon name="layers" size={28} /><h3>LED and display walls</h3><p>Lobby screens to full video walls, installed, calibrated and remotely managed. Menu boards and signage that stay up.</p></div>
+        <div class="card"><Icon name="cpu" size={28} /><h3>Custom business apps</h3><p>Cameras, access, network status and support in one white-labeled app built for your business.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--tight">
+    <div class="container">
+      <div class="card card--burnt card--lg split">
+        <div>
+          <span class="eyebrow">Procurement pricing perk</span>
+          <h2 style="font-size:var(--fs-3xl);">We buy hardware at cost. Our clients pay the same.</h2>
+        </div>
+        <p style="font-size:var(--fs-md);">Most IT companies mark up hardware 20 to 40 percent. We do not. Every switch, access point, camera and server is passed to you at our procurement price. No games, no margin stacking. We make money on the service, not the gear.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--cream2">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Industries</span><h2>We have deployed in your world before.</h2><p>We have already solved your specific problem somewhere else. We just need to learn your setup.</p></div>
+      <div class="grid-4">
+        <div class="card"><h3>Restaurants and hospitality</h3><p>POS networks, AV, kitchen displays, guest Wi-Fi, loyalty integrations.</p></div>
+        <div class="card"><h3>Hotels and lodging</h3><p>Guest experience tech, property-wide networking, lobby displays, access control.</p></div>
+        <div class="card"><h3>Manufacturing</h3><p>Floor networking, IoT integration, process automation, secure OT/IT separation.</p></div>
+        <div class="card"><h3>Retail and multi-location</h3><p>Consistent experience across every location. One vendor, one dashboard, one call.</p></div>
+        <div class="card"><h3>Military and DoD</h3><p>Secure infrastructure, compliance-aware deployments, hardened network architecture.</p></div>
+        <div class="card"><h3>Commercial buildings</h3><p>Building-wide networking, access control, AV and tenant tech infrastructure.</p></div>
+        <div class="card"><h3>Architecture and engineering</h3><p>High-performance workstation networks, collaboration tools, secure remote access.</p></div>
+        <div class="card"><h3>International operations</h3><p>{contact.area}. Consistent standards across borders and locations.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="displays">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Displays and AV</span><h2>Displays that make an impression.</h2><p>From a single lobby screen to a multi-panel LED video wall, we design, source, install and manage every display in your space. If it lights up, we handle it.</p></div>
+      <div class="grid-3">
+        <div class="card"><h3>Large format LED walls</h3><p>Custom video wall systems, any size, any resolution, indoor and outdoor. Direct-view LED panels installed and calibrated to your space.</p></div>
+        <div class="card"><h3>Digital signage and menu boards</h3><p>Commercial displays with remote content management. Update your menu or promotions from your phone in seconds.</p></div>
+        <div class="card"><h3>Conference room AV</h3><p>Display, audio, cameras and control designed for video calls that do not make you look like an amateur.</p></div>
+        <div class="card"><h3>Distributed audio</h3><p>Whole-space audio for restaurants, lobbies, retail and offices. Zone-controlled, app-managed, professionally installed.</p></div>
+        <div class="card"><h3>Sports bar and entertainment</h3><p>Multiple screens, multiple sources, zero headaches. Systems your staff can actually operate.</p></div>
+        <div class="card"><h3>Lobby and guest experience</h3><p>Branded lobby displays, wayfinding and guest-facing technology that sets the tone the moment someone walks in.</p></div>
+      </div>
+      <div class="split" style="margin-top:32px;">
+        <div class="card card--navy"><span class="eyebrow">Dealer pricing perk</span><h3>Commercial AV at dealer cost. Same deal as our hardware.</h3><p>We are authorized dealers for the brands we install, so you get dealer pricing on every screen, panel and component. Most integrators add 30 to 50 percent on top. We pass our cost straight to you.</p></div>
+        <div>
+          <h3>We manage everything after install</h3>
+          <ul class="check-list" style="margin-top:12px;">
+            <li><Icon name="check" size={18} />Remote content updates from your app</li>
+            <li><Icon name="check" size={18} />Scheduled content by time or day</li>
+            <li><Icon name="check" size={18} />24/7 monitoring, we know before you do</li>
+            <li><Icon name="check" size={18} />Multi-location management from one dashboard</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--navy" id="apps">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Custom business apps</span><h2>Your whole operation. One app.</h2><p>Most businesses manage their tech through a dozen disconnected dashboards. We build you one white-labeled app that ties everything HowdyNET manages into one clean interface, on your phone, your tablet, your front desk screen. Built for your systems, your team and your workflows.</p></div>
+      <div class="grid-3">
+        <div class="card card--glass"><Icon name="camera" size={26} /><h3>Live camera feeds</h3><p>Every camera we manage, in your pocket. Live view, recordings and motion alerts from anywhere.</p></div>
+        <div class="card card--glass"><Icon name="lock" size={26} /><h3>Door access</h3><p>Grant or revoke access, see who came in and when, unlock doors remotely.</p></div>
+        <div class="card card--glass"><Icon name="activity" size={26} /><h3>Network health</h3><p>Real-time quality score, connected devices, bandwidth and threats blocked, in plain English.</p></div>
+        <div class="card card--glass"><Icon name="monitor" size={26} /><h3>Display content</h3><p>Push content to LED walls and signage from anywhere. Change the menu board before service.</p></div>
+        <div class="card card--glass"><Icon name="headset" size={26} /><h3>Support requests</h3><p>Open a ticket, attach a photo and reach us directly inside the same app.</p></div>
+        <div class="card card--glass"><Icon name="building" size={26} /><h3>Built for your business</h3><p>Your brand, your systems, iOS, Android and web. One interface that makes you look like you have an enterprise IT team, because you do.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Why not the other guys?</span><h2>We have worked alongside the big players. Here is the truth.</h2></div>
+      <div class="grid-2">
+        <div class="card card--brown">
+          <h3>The big guys</h3>
+          <ul class="stack" style="list-style:none;padding:0;margin-top:16px;">
+            <li><b>A ticket number, not a person.</b> Open a ticket, wait a day, hear from someone who has never seen your setup. Meanwhile your business is down.</li>
+            <li><b>The vendor blame game.</b> Your ISP blames the router. Your IT company blames the ISP. Nobody owns the problem. You pay all of them anyway.</li>
+            <li><b>Hardware markup as a profit center.</b> Retail is $400. They charge $700. You would never know unless you looked it up.</li>
+            <li><b>"Up to" speeds that never are.</b> That 500 Mbps plan is "up to" 500. Run our test and see what you actually get.</li>
+            <li><b>Three-year contracts.</b> Long contracts are not confidence, they are a hedge.</li>
+          </ul>
+        </div>
+        <div class="card card--navy">
+          <h3>HowdyNET</h3>
+          <ul class="stack" style="list-style:none;padding:0;margin-top:16px;">
+            <li><b>A real human, our actual number.</b> {contact.phone}. Someone who already knows your setup answers, because we documented everything when we built it.</li>
+            <li><b>One throat to choke. Ours.</b> Internet, network, cameras, AV and IT under one roof. One call, nobody to point at but us.</li>
+            <li><b>Hardware at our cost. Full stop.</b> What we pay, you pay. We make money on the service.</li>
+            <li><b>We own the network, we guarantee the speed.</b> Licensed WISP, symmetric speeds, low latency, zero throttling.</li>
+            <li><b>Month to month.</b> We stay because we are worth it, not because you are locked in.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="row" style="margin-top:32px;justify-content:space-between;">
+        <p class="pullquote" style="margin:0;">S'pose it's time to put all your tech under one hat.</p>
+        <a class="btn btn-primary btn-lg" href="/about?need=managed#contact">Say howdy</a>
+      </div>
+    </div>
+  </section>
+</Base>

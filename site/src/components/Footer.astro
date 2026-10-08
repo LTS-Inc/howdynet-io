@@ -1,45 +1,45 @@
 ---
+const { contact } = Astro.locals.settings;
+const year = new Date().getFullYear();
 ---
-<!-- ── FOOTER ── -->
-<footer>
-  <div class="footer-left">
-    <div class="footer-logo"><span class="fl-o">Howdy</span><span class="fl-b">NET</span></div>
-    <div class="footer-hq">Headquartered in Texas · US · Mexico · Canada · Europe</div>
-  </div>
-  
-
-<nav>
-    <a href="#internet">Internet & WAN</a>
-    <a href="#lan">LAN Solutions</a>
-    <a href="#plans">Plans</a>
-    <a href="#about">About</a>
-    <a href="#contact">Contact</a>
-  </nav>
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><button class="game-trigger" onclick="openGame()">🤠 Play: Vendor Wrangler — Can you run the whole operation?</button><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-align:right;">
-    <div class="footer-copy">© 2026 HowdyNET. All rights reserved.</div>
-    <div style="font-size:0.62rem;color:rgba(255,255,255,0.15);font-weight:400;letter-spacing:0.04em;">HowdyNET is proud to be an <a href="https://longoriatechnologysolutions.co" target="_blank" rel="noopener" style="color:rgba(255,255,255,0.22);text-decoration:none;transition:color 0.2s;" onmouseover="this.style.color='rgba(255,255,255,0.45)'" onmouseout="this.style.color='rgba(255,255,255,0.22)'">LTS Company</a></div>
-  </div></div>
-  <!-- ── FOOTER LEGAL LINKS ── -->
-  <div class="footer-legal" style="width:100%;">
-    <a href="/privacy">Privacy Policy</a>
-    <span class="pipe">·</span>
-    <a href="/terms">Terms of Service</a>
-    <span class="pipe">·</span>
-    <a href="mailto:support@howdynet.io">support@howdynet.io</a>
-    <span class="pipe">·</span>
-    <span>We do not sell your data.</span>
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a class="brand" href="/">Howdy<span>NET</span></a>
+        <p style="margin-top:12px;max-width:360px;">One partner for business internet, managed networks and IT. Licensed WISP. Hardware at our cost. A person answers.</p>
+        <p style="margin-top:12px;">{contact.hq} · {contact.area}</p>
+      </div>
+      <div>
+        <h4>Services</h4>
+        <ul>
+          <li><a href="/internet">Business internet</a></li>
+          <li><a href="/managed-it">Managed IT &amp; LAN</a></li>
+          <li><a href="/ranchhand">RanchHand gateway</a></li>
+          <li><a href="/plans">Plans &amp; pricing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Tools</h4>
+        <ul>
+          <li><a href="/network-test">Network quality test</a></li>
+          <li><a href="/plans#calculators">Value calculators</a></li>
+          <li><a href="/about#coverage">Coverage check</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/about#contact">Contact</a></li>
+          <li><a href={`tel:${contact.phone.replace(/\D/g, "")}`}>{contact.phone}</a></li>
+          <li><a href={`mailto:${contact.email}`}>{contact.email}</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© {year} HowdyNET. All rights reserved. Part of <a href="https://longoriatechnologysolutions.co" rel="noopener">LTS</a>.</span>
+      <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · We do not sell your data.</span>
+    </div>
   </div>
 </footer>
-
-<!-- ── PRIVACY DISCLAIMER BAR ── -->
-<div class="privacy-bar">
-  HowdyNET collects contact &amp; quote form data solely to respond to your inquiry. Network diagnostic tests run client-side — data is not stored on our servers unless you submit it.
-  &nbsp;·&nbsp;
-  <a href="/privacy">Privacy Policy</a>
-  <span class="pipe">|</span>
-  <a href="/terms">Terms of Service</a>
-  <span class="pipe">|</span>
-  <a href="mailto:support@howdynet.io">support@howdynet.io</a>
-  <span class="pipe">|</span>
-  Headquartered in Austin, TX · Serving the US &amp; beyond
-</div>

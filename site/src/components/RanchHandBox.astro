@@ -1,0 +1,23 @@
+---
+import { money } from "../lib/settings";
+const { pricing } = Astro.locals.settings;
+---
+<div class="card card--brown card--lg split split--start" style="gap:32px;">
+  <div>
+    <span class="eyebrow">Not in our service area yet?</span>
+    <h2 style="font-size:var(--fs-3xl);">RanchHand. Keep your ISP, upgrade your network.</h2>
+    <p style="margin-top:12px;font-size:var(--fs-md);">A managed HowdyNET gateway that plugs in between your existing modem and your network. We ship it preconfigured, install it remotely and manage it 24/7, on any ISP, anywhere.</p>
+    <div class="row" style="margin-top:20px;">
+      <a class="btn btn-primary" href="/ranchhand">About RanchHand</a>
+      <a class="btn btn-ghost" href="/about?need=ranchhand#contact">Get RanchHand</a>
+    </div>
+  </div>
+  <div class="stack">
+    <div class="price" style="display:flex;align-items:baseline;gap:6px;color:var(--cream);"><b style="font-size:2.75rem;font-weight:900;line-height:1;">{money(pricing.ranchhand)}</b><span>/mo, either option</span></div>
+    <ul class="check-list" style="color:var(--on-dark);font-size:var(--fs-sm);">
+      <li><span class="badge" style="flex:none;">1</span>Month to month plus a refundable {money(pricing.ranchhandDeposit)} hardware deposit</li>
+      <li><span class="badge" style="flex:none;">2</span>12-month commitment with the hardware included</li>
+    </ul>
+    <p style="font-size:var(--fs-sm);">Bufferbloat fix, smart QoS, DNS filtering, network fingerprinting, 24/7 monitoring and a VPN back to your own network.</p>
+  </div>
+</div>

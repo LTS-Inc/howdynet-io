@@ -1,78 +1,150 @@
 ---
 import Base from "../layouts/Base.astro";
-import Popup from "../components/Popup.astro";
-import Nav from "../components/Nav.astro";
-import Hero from "../components/Hero.astro";
-import Ethos from "../components/Ethos.astro";
-import Industries from "../components/Industries.astro";
-import WhyNot from "../components/WhyNot.astro";
-import Wisp from "../components/Wisp.astro";
-import Internet from "../components/Internet.astro";
-import Lan from "../components/Lan.astro";
-import Plans from "../components/Plans.astro";
-import Calculators from "../components/Calculators.astro";
-import IspPlans from "../components/IspPlans.astro";
-import RanchHand from "../components/RanchHand.astro";
-import FreeDiagnosis from "../components/FreeDiagnosis.astro";
-import CustomApps from "../components/CustomApps.astro";
-import LedAv from "../components/LedAv.astro";
-import About from "../components/About.astro";
-import Proof from "../components/Proof.astro";
-import Community from "../components/Community.astro";
-import Faq from "../components/Faq.astro";
-import Contact from "../components/Contact.astro";
-import Footer from "../components/Footer.astro";
-import HowdyPopup from "../components/HowdyPopup.astro";
-import QuoteModal from "../components/QuoteModal.astro";
-import StickyBar from "../components/StickyBar.astro";
-import CookieBanner from "../components/CookieBanner.astro";
-import SiteScripts from "../components/SiteScripts.astro";
-
-const ld = {
+import Icon from "../components/Icon.astro";
+import ContactForm from "../components/ContactForm.astro";
+import Testimonials from "../components/Testimonials.astro";
+import FaqList from "../components/FaqList.astro";
+import { money } from "../lib/settings";
+const { contact, stats, pricing, images } = Astro.locals.settings;
+const hero = images.hero;
+const faqs = [
+  { q: "Do you serve my address?", a: "We are Texas-based and expanding. Send the form with your address and we tell you straight. Anywhere else, <a href=\"/ranchhand\">RanchHand</a> runs on your existing ISP." },
+  { q: "How fast is installation?", a: "Wireless-first: days, not months. No trenching, no conduit. Hardened Ethernet runs take a little longer and we give you a realistic timeline up front." },
+  { q: "Are there contracts or data caps?", a: "No and no. Month to month, symmetric, unmetered. We would rather earn your business every month than trap you in a three-year agreement." },
+  { q: "What happens when something breaks?", a: `You call or text <strong>${contact.phone}</strong>. A person who already knows your setup answers. We own the fix end to end, and managed clients are monitored before they notice.` },
+];
+const jsonLd = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
   name: "HowdyNET",
-  description: "Licensed WISP and managed technology partner — internet, networks, security, AV, LED displays, and custom apps under one hat.",
   url: "https://www.howdynet.io",
-  telephone: "+15122004744",
+  telephone: contact.phone,
+  email: contact.email,
   address: { "@type": "PostalAddress", addressLocality: "Austin", addressRegion: "TX", addressCountry: "US" },
+  description: "Business internet (licensed WISP), managed networks and IT in Austin, Texas.",
   areaServed: ["US", "MX", "CA", "EU"],
-  priceRange: "$$",
-  sameAs: [],
-  parentOrganization: { "@type": "Organization", name: "LTS - Longoria Technology Solutions", url: "https://longoriatechnologysolutions.co" },
 };
 ---
-<Base
-  title="HowdyNET | One Hat. All Your Business Tech. | Austin TX"
-  description="Licensed WISP and managed technology partner in Austin, TX. Internet, networks, security cameras, AV, LED displays, custom apps — one call, one hat, zero vendor chaos. Serving US, Mexico, Canada, and Europe. (512) 200-4744."
->
-  <script slot="head" type="application/ld+json" is:inline set:html={JSON.stringify(ld)} />
+<Base title="HowdyNET · Business Internet, Managed Networks and IT in Austin" description="One partner for your internet, your network and your IT. Licensed WISP, hardware at our cost, month to month, and a person who answers. Austin, Texas." ogTitle="HowdyNET: one partner for internet, network and IT" turnstile>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <script is:inline>
+      // Old one-page anchors (#internet, #plans, …) forward to their new pages.
+      (function () {
+        var map = { internet: "/internet", lan: "/managed-it", "custom-apps": "/managed-it#apps", "led-av": "/managed-it#displays", plans: "/plans", "isp-plans": "/plans#internet", calculators: "/plans#calculators", ranchhand: "/ranchhand", "free-diagnosis": "/network-test", about: "/about", contact: "/about#contact", coverage: "/about#coverage" };
+        var h = location.hash.replace("#", "");
+        if (h && map[h]) location.replace(map[h]);
+      })();
+    </script>
+  </Fragment>
 
-  <Popup />
-  <Nav />
-  <Hero />
-  <Ethos />
-  <Industries />
-  <WhyNot />
-  <Wisp />
-  <Internet />
-  <Lan />
-  <Plans />
-  <Calculators />
-  <IspPlans />
-  <RanchHand />
-  <FreeDiagnosis />
-  <CustomApps />
-  <LedAv />
-  <About />
-  <Proof />
-  <Community />
-  <Faq />
-  <Contact />
-  <Footer />
-  <HowdyPopup />
-  <QuoteModal />
-  <StickyBar />
-  <CookieBanner />
-  <SiteScripts />
+  <section class="hero hero--home">
+    <div class="container split">
+      <div>
+        <span class="eyebrow">{contact.hq} · Licensed WISP · Managed IT</span>
+        <h1>One partner for your internet, your network, and your IT.</h1>
+        <p class="lede">Business internet we own, networks we build, support where a human picks up. One number, month to month, hardware at our cost.</p>
+        <div class="row">
+          <a class="btn btn-primary btn-lg" href="/about?need=coverage#contact"><Icon name="map-pin" size={20} />Check my address</a>
+          <a class="btn btn-ghost btn-lg" href="/about#contact">Talk to a human</a>
+        </div>
+        <p class="small" style="margin-top:16px;color:var(--on-dark-3);">Same business day reply · no contracts · no hardware markup</p>
+      </div>
+      {hero.src ? (
+        <div class="hero-image"><img src={hero.src} alt={hero.alt} width="640" height="480" fetchpriority="high" /></div>
+      ) : (
+        <div class="hero-hats">
+          <img class="hat" src="/img/hat-orange-640.webp" alt="Orange hat, the local network" width="300" height="300" fetchpriority="high" />
+          <img class="hat" src="/img/hat-blue-640.webp" alt="Blue hat, the internet connection" width="300" height="300" />
+        </div>
+      )}
+    </div>
+  </section>
+
+  <section class="section section--tight" aria-label="At a glance">
+    <div class="container stats">
+      {stats.map((s) => <div class="stat"><b>{s.value}</b><span>{s.label}</span></div>)}
+    </div>
+  </section>
+
+  <section class="section section--cream2" id="hats">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Two hats, one team</span><h2>Pick the hat you need today. We wear both.</h2><p>Most businesses juggle an ISP, an IT shop, a camera installer and an AV company who blame each other. We own the whole stack, so there is nobody to point at.</p></div>
+      <div class="chooser">
+        <article class="card card--navy">
+          <img class="hat" src="/img/hat-blue-320.webp" alt="" width="96" height="96" loading="lazy" />
+          <div>
+            <span class="eyebrow" style="margin-bottom:4px;">Blue hat · Internet &amp; WAN</span>
+            <h3>We are your ISP.</h3>
+            <p>Licensed wireless ISP. Symmetric speeds, no caps, no throttling, installed in days without digging up your parking lot. Business internet from {money(pricing.internet.basic)}/mo, LTE failover, 24/7 monitoring.</p>
+            <a class="btn-link" href="/internet">Internet services <Icon name="arrow-right" size={18} /></a>
+          </div>
+        </article>
+        <article class="card card--burnt">
+          <img class="hat" src="/img/hat-orange-320.webp" alt="" width="96" height="96" loading="lazy" />
+          <div>
+            <span class="eyebrow" style="margin-bottom:4px;">Orange hat · Managed IT &amp; LAN</span>
+            <h3>We run what is inside.</h3>
+            <p>Wi-Fi that covers the whole space, cameras and door access, help desk, displays, and the custom app that ties it together. Managed networks from {money(pricing.managed.pos)}/mo, hardware at our cost.</p>
+            <a class="btn-link" href="/managed-it">Managed IT &amp; LAN <Icon name="arrow-right" size={18} /></a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container grid-3">
+      <div class="card"><Icon name="phone" size={32} /><h3>A person answers.</h3><p>Call or text {contact.phone}. Someone who already knows your setup picks up, because we built it and documented it.</p></div>
+      <div class="card card--blue"><Icon name="shield" size={32} /><h3>One throat to choke. Ours.</h3><p>Internet, network, cameras, AV and IT under one roof. When something breaks there is one call and no finger-pointing.</p></div>
+      <div class="card"><Icon name="tag" size={32} /><h3>Hardware at cost. Full stop.</h3><p>Most IT companies mark up gear 20 to 40 percent. We pass our procurement price straight through and make money on the service.</p></div>
+    </div>
+  </section>
+
+  <section class="section section--dark">
+    <div class="container">
+      <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:32px;">
+        <div class="section-head" style="margin:0;"><span class="eyebrow">Starting points</span><h2>Honest prices, listed once.</h2><p>Every plan is month to month. Bundle, adjust scope, add locations and we build a transparent quote.</p></div>
+        <a class="btn-link" href="/plans">See every plan compared <Icon name="arrow-right" size={18} /></a>
+      </div>
+      <div class="grid-3">
+        <div class="card card--navy-2"><span class="eyebrow">Business internet</span><div class="price" style="display:flex;align-items:baseline;gap:4px;color:var(--cream);"><b style="font-size:2.5rem;font-weight:900;line-height:1;">{money(pricing.internet.basic)}</b><span>/mo</span></div><p style="margin-top:10px;">25 to 250+ Mbps symmetric. No caps, no throttling, router included.</p></div>
+        <div class="card card--burnt"><span class="eyebrow">Managed network &amp; IT</span><div class="price" style="display:flex;align-items:baseline;gap:4px;color:var(--cream);"><b style="font-size:2.5rem;font-weight:900;line-height:1;">{money(pricing.managed.pos)}</b><span>/mo</span></div><p style="margin-top:10px;">From POS-only to full-venue MSP with monthly reviews. Hardware at our cost.</p></div>
+        <div class="card card--brown"><span class="eyebrow">RanchHand gateway</span><div class="price" style="display:flex;align-items:baseline;gap:4px;color:var(--cream);"><b style="font-size:2.5rem;font-weight:900;line-height:1;">{money(pricing.ranchhand)}</b><span>/mo</span></div><p style="margin-top:10px;">Keep your ISP. We fix bufferbloat, filter, monitor and give you a VPN home.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--navy">
+    <div class="container split">
+      <div>
+        <span class="eyebrow">Free, 20 seconds, no install</span>
+        <h2>Your ISP sold you a number. We measure what matters.</h2>
+        <p class="lede" style="margin-top:12px;">Latency, jitter, bufferbloat and consistency, scored out of 100 in your browser. A 100 Mbps line with a 90 score feels better than gigabit with bufferbloat.</p>
+        <a class="btn btn-primary-blue btn-lg" href="/network-test" style="margin-top:24px;">Run the network test</a>
+      </div>
+      <div class="qs-ring" style="margin:0 auto;background:conic-gradient(var(--sky) 87%, rgba(26,159,224,0.2) 0);" aria-hidden="true">
+        <div class="qs-inner"><div class="qs-score">87</div><div class="qs-verdict">quality score</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head"><h2>What clients say</h2></div>
+      <Testimonials />
+    </div>
+  </section>
+
+  <section class="section section--cream2" id="contact">
+    <div class="container split split--start">
+      <div>
+        <h2>Quick answers</h2>
+        <div style="margin-top:20px;"><FaqList items={faqs} /></div>
+      </div>
+      <div class="card card--lg">
+        <ContactForm variant="short" heading="Say howdy" intro="Tell us what is going on. We reply the same business day." />
+      </div>
+    </div>
+  </section>
 </Base>

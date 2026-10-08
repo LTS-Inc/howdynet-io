@@ -27,6 +27,11 @@ env:
   TF_VAR_dmarc_record: ${{ vars.DMARC_RECORD }}
   TF_VAR_enforce_2fa: ${{ vars.ENFORCE_2FA || 'false' }}
   TF_VAR_apex_redirect: ${{ vars.APEX_REDIRECT || 'false' }}
+  # /admin behind Cloudflare Access with Google sign-in (`howdy admin` sets these)
+  TF_VAR_admin_access: ${{ vars.ADMIN_ACCESS || 'false' }}
+  TF_VAR_admin_emails: ${{ vars.ADMIN_EMAILS || '["support@howdynet.io"]' }}
+  TF_VAR_google_client_id: ${{ secrets.GOOGLE_CLIENT_ID }}
+  TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
 defaults:
   run:

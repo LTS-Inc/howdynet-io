@@ -1,0 +1,95 @@
+---
+import Base from "../layouts/Base.astro";
+import Icon from "../components/Icon.astro";
+import FaqList from "../components/FaqList.astro";
+import { money } from "../lib/settings";
+const { pricing } = Astro.locals.settings;
+const price = money(pricing.ranchhand);
+const deposit = money(pricing.ranchhandDeposit);
+const faqs = [
+  { q: "Do I have to change my ISP to use RanchHand?", a: "No. That is the whole point. RanchHand works with Comcast, AT&amp;T, Spectrum or any ISP you are currently using or stuck with. We plug our managed gateway between your existing modem and your network. Your ISP does not even know we are there." },
+  { q: "Do I own the hardware?", a: `Two options, honest math. <strong>Month to month</strong> at ${price}/mo with a ${deposit} hardware deposit, cancel anytime, deposit refunded within 90 days if you return the hardware in working condition. Or a <strong>12-month commitment</strong> at the same ${price}/mo with the hardware included. The commitment covers our cost on the appliance, the same way a phone carrier works.` },
+  { q: "What does RanchHand do that my current router doesn't?", a: "Your router was set up once and never touched again. RanchHand is actively managed: we fix bufferbloat (the usual cause of choppy video calls), shape traffic so POS and VoIP always get priority, block ads and unwanted content at the DNS level, build a behavioral fingerprint of your network and flag anything unusual, and give you a VPN back to your own network from anywhere. And we watch it 24/7." },
+  { q: "I'm outside your internet coverage. Can I still get HowdyNET?", a: "Yes, that is exactly what RanchHand is for. You get everything except the ISP connection itself. When we expand to your area, upgrading to full HowdyNET internet is seamless." },
+];
+---
+<Base title="RanchHand Managed Gateway · HowdyNET" description="Keep your ISP, upgrade your network. RanchHand is a managed gateway that fixes bufferbloat, prioritizes POS and calls, filters ads and content, fingerprints your network and gives you a VPN home. $79/mo on any ISP." ogTitle="RanchHand: keep your ISP, upgrade your network">
+  <section class="hero hero--burnt">
+    <div class="container split">
+      <div>
+        <span class="eyebrow">Managed gateway appliance</span>
+        <h1>RanchHand. Keep your ISP. Upgrade your network.</h1>
+        <p class="lede">A managed HowdyNET gateway that plugs in between your existing ISP modem and your network. We ship it preconfigured, install it remotely and manage it 24/7, whether you are in our service area or not.</p>
+        <div class="row">
+          <a class="btn btn-primary btn-lg" href="/about?need=ranchhand#contact">Get RanchHand</a>
+          <a class="btn btn-ghost btn-lg" href="/network-test">Test my connection first</a>
+        </div>
+      </div>
+      <div class="hero-hats"><img class="hat" src="/img/hat-orange-640.webp" alt="" width="300" height="300" /></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="card card--navy card--lg">
+        <span class="eyebrow">Works anywhere. Any ISP. Any location.</span>
+        <p style="font-size:var(--fs-lg);">Not in our service area yet? RanchHand works with Comcast, AT&amp;T, Spectrum or any other ISP you are stuck with. One managed appliance, zero ISP changes. It includes a secure VPN so you are on your own network from anywhere, even camping under the stars. When HowdyNET expands to your area, upgrading is seamless.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--cream2" id="pricing">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">Pricing</span><h2>{price} a month, two ways to get the hardware.</h2></div>
+      <div class="grid-2">
+        <article class="plan">
+          <span class="badge badge--outline" style="align-self:flex-start;">Most flexible</span>
+          <div class="plan-name">Month to month, {deposit} refundable deposit</div>
+          <div class="price"><b>{price}</b><span>/mo</span></div>
+          <p class="plan-tagline">Cancel anytime. The deposit is fully refunded within 90 days if the hardware comes back in working condition. No surprises, no traps.</p>
+          <a class="btn btn-accent" href="/about?need=ranchhand#contact">Start month to month</a>
+        </article>
+        <article class="plan plan--popular">
+          <span class="badge">Best value</span>
+          <div class="plan-name">12-month commitment, hardware included</div>
+          <div class="price"><b>{price}</b><span>/mo</span></div>
+          <p class="plan-tagline">Hardware ships preconfigured at no extra cost. Same monthly price; the commitment covers our cost on the appliance. Honest math.</p>
+          <a class="btn btn-primary" href="/about?need=ranchhand#contact">Start the 12-month plan</a>
+        </article>
+      </div>
+      <h3 style="margin-top:36px;">Included in both</h3>
+      <ul class="check-list grid-2" style="margin-top:12px;">
+        <li><Icon name="check" size={18} />HowdyNET gateway appliance, preconfigured, plug and play</li>
+        <li><Icon name="check" size={18} />Remote setup, configuration and ongoing management</li>
+        <li><Icon name="check" size={18} />24/7 performance monitoring and alerts</li>
+        <li><Icon name="check" size={18} />Bufferbloat remediation and smart QoS tuning</li>
+        <li><Icon name="check" size={18} />DNS-level ad blocking and content filtering</li>
+        <li><Icon name="check" size={18} />Network fingerprinting and behavioral traffic enforcement</li>
+        <li><Icon name="check" size={18} />Secure VPN, your ranch wherever you roam</li>
+      </ul>
+      <p class="small muted" style="margin-top:16px;">No markup on hardware. Ships preconfigured. Plug in, you are managed.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head"><span class="eyebrow">What it does</span><h2>Seven things your current router is not doing.</h2></div>
+      <div class="grid-3">
+        <div class="card"><span class="badge badge--outline">Performance</span><h3 style="margin-top:12px;">Bufferbloat remediation</h3><p>We tune QoS to eliminate bufferbloat, the usual cause of choppy video calls and laggy apps even on fast connections. Most routers ship with this off. We turn it on and dial it in.</p></div>
+        <div class="card"><span class="badge badge--outline">Performance</span><h3 style="margin-top:12px;">Smart traffic shaping</h3><p>VoIP, video calls and critical apps get priority automatically. POS and payment terminals always have bandwidth. Backups run in the background, not during business hours.</p></div>
+        <div class="card"><span class="badge badge--outline">Filtering</span><h3 style="margin-top:12px;">DNS-level ad blocking</h3><p>Ads, trackers and malicious domains blocked before they reach any device. Faster pages, less wasted bandwidth, no ads on the lobby TV.</p></div>
+        <div class="card"><span class="badge badge--outline">Filtering</span><h3 style="margin-top:12px;">Content filtering by category</h3><p>Block adult content, gambling, social media during work hours or anything else, network-wide. Guest and staff networks can have different rules.</p></div>
+        <div class="card"><span class="badge badge--outline">Performance</span><h3 style="margin-top:12px;">24/7 monitoring and alerts</h3><p>If your ISP goes down, latency spikes or something unusual happens, we know before you do and we act on it.</p></div>
+        <div class="card"><span class="badge badge--outline">Signature feature</span><h3 style="margin-top:12px;">Network fingerprinting</h3><p>We learn what healthy looks like for your devices and traffic, then enforce it. Unrecognized traffic is flagged and blocked before it becomes a problem.</p></div>
+        <div class="card"><span class="badge badge--outline">Remote access</span><h3 style="margin-top:12px;">Your ranch, wherever you roam</h3><p>A secure VPN tunnel back to your business network from anywhere. Your phone and laptop appear on your own network, behind your own protections. No sketchy third-party VPN.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--navy">
+    <div class="container">
+      <div class="section-head"><h2>RanchHand questions</h2></div>
+      <FaqList items={faqs} openFirst />
+    </div>
+  </section>
+</Base>

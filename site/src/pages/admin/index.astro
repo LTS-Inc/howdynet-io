@@ -1,0 +1,177 @@
+---
+export const prerender = false;
+import { env } from "cloudflare:workers";
+import Base from "../../layouts/Base.astro";
+import Icon from "../../components/Icon.astro";
+import { forbidden, verifyAdmin } from "../../lib/access";
+import { FLAGS, IMAGE_SLOTS, getSettings } from "../../lib/settings";
+
+const email = await verifyAdmin(Astro.request);
+if (!email) return forbidden();
+
+const s = await getSettings(env.FORM_SUBMISSIONS, true);
+const saved = Astro.url.searchParams.get("saved") === "1";
+const problems = Astro.url.searchParams.get("problems");
+const flagMeta: Record<(typeof FLAGS)[number], [string, string]> = {
+  game: ["Hidden game", "Adds a \"Play: Vendor Wrangler\" button to the footer that opens the catch-the-invoices game."],
+  konami: ["Konami code easter egg", "Typing the Konami code on any page shows the cowboy-mode overlay with tumbleweeds and raining hats."],
+  floatingHat: ["Floating hat", "A hat drifts around the page and drops confetti when clicked."],
+  promoPopup: ["Promo popup", "Shows the promo below once per visit after the visitor scrolls halfway down a page."],
+};
+const slotMeta: Record<(typeof IMAGE_SLOTS)[number], string> = {
+  hero: "Home page hero (replaces the two hats, 4:3 looks best)",
+  about: "About page hero (replaces the two hats, 4:3)",
+  promo: "Promo popup image (square)",
+  "testimonial-1": "Photo for testimonial 1 (square)",
+  "testimonial-2": "Photo for testimonial 2 (square)",
+  "testimonial-3": "Photo for testimonial 3 (square)",
+};
+---
+<Base title="Site settings · HowdyNET admin" description="HowdyNET site settings" noindex bare>
+  <header class="site-header">
+    <nav class="site-nav container" aria-label="Admin">
+      <a class="brand" href="/">Howdy<span>NET</span></a>
+      <span style="margin-left:auto;font-size:var(--fs-sm);color:var(--on-dark-2);">Signed in as <b style="color:var(--cream);">{email}</b></span>
+      <a class="btn btn-ghost btn-sm" href="/cdn-cgi/access/logout" style="color:var(--cream);">Sign out</a>
+    </nav>
+  </header>
+  <section class="section section--tight">
+    <div class="container">
+      <span class="eyebrow">Admin</span>
+      <h1 style="font-size:var(--fs-4xl);">Site settings</h1>
+      <p class="lede" style="margin-top:10px;">Changes go live within 30 seconds of saving. Leave a text field empty to use the default copy.{s.updatedAt && <> Last saved {new Date(s.updatedAt).toLocaleString("en-US", { timeZone: "America/Chicago" })} CT by {s.updatedBy}.</>}</p>
+      {saved && <div class="form-ok show" style="margin-top:16px;">Saved.</div>}
+      {problems && <div class="form-error show" style="margin-top:16px;">Saved, but some images were skipped: {problems}</div>}
+    </div>
+  </section>
+  <form class="admin-form container" action="/api/admin/settings" method="post" enctype="multipart/form-data" style="padding-bottom:40px;">
+    <section class="admin-group" id="features">
+      <h2>Features</h2>
+      <p class="group-help">All four are off by default. They load only on pages served after you turn them on.</p>
+      <div>
+        {FLAGS.map((f) => (
+          <label class="switch">
+            <span><b>{flagMeta[f][0]}</b><span class="hint">{flagMeta[f][1]}</span></span>
+            <input type="checkbox" name={`flags.${f}`} checked={s.flags[f]} />
+          </label>
+        ))}
+      </div>
+    </section>
+
+    <section class="admin-group" id="promo">
+      <h2>Promo popup</h2>
+      <p class="group-help">Shown when the "Promo popup" feature is on. The image comes from the "Promo popup image" slot below.</p>
+      <label class="field"><span>Title</span><input type="text" name="promo.title" value={s.promo.title} maxlength="120" /></label>
+      <label class="field"><span>Body</span><textarea name="promo.body" rows="3" maxlength="500">{s.promo.body}</textarea></label>
+      <div class="grid-2">
+        <label class="field"><span>Button text</span><input type="text" name="promo.ctaText" value={s.promo.ctaText} maxlength="60" /></label>
+        <label class="field"><span>Button link</span><input type="text" name="promo.ctaHref" value={s.promo.ctaHref} placeholder="/about#contact" /></label>
+      </div>
+    </section>
+
+    <section class="admin-group" id="announcement">
+      <h2>Announcement bar</h2>
+      <p class="group-help">A one-line bar above the navigation on every page. Useful for outages, holiday hours or a promotion.</p>
+      <label class="switch"><span><b>Show the announcement bar</b></span><input type="checkbox" name="announcement.enabled" checked={s.announcement.enabled} /></label>
+      <label class="field"><span>Text</span><input type="text" name="announcement.text" value={s.announcement.text} maxlength="200" placeholder="e.g. Holiday hours: closed Dec 25. Emergencies: call or text." /></label>
+      <div class="grid-2">
+        <label class="field"><span>Link text (optional)</span><input type="text" name="announcement.linkText" value={s.announcement.linkText} maxlength="60" /></label>
+        <label class="field"><span>Link (optional)</span><input type="text" name="announcement.href" value={s.announcement.href} placeholder="/plans" /></label>
+      </div>
+    </section>
+
+    <section class="admin-group" id="contact">
+      <h2>Contact details</h2>
+      <p class="group-help">Used in the footer, the About page, the home page FAQ and the structured data search engines read.</p>
+      <div class="grid-2">
+        <label class="field"><span>Phone</span><input type="text" name="contact.phone" value={s.contact.phone} maxlength="40" /></label>
+        <label class="field"><span>Email</span><input type="email" name="contact.email" value={s.contact.email} maxlength="120" /></label>
+        <label class="field"><span>Phone line note</span><input type="text" name="contact.hours" value={s.contact.hours} maxlength="120" /></label>
+        <label class="field"><span>Headquarters</span><input type="text" name="contact.hq" value={s.contact.hq} maxlength="80" /></label>
+        <label class="field"><span>Service area</span><input type="text" name="contact.area" value={s.contact.area} maxlength="120" /></label>
+      </div>
+    </section>
+
+    <section class="admin-group" id="stats">
+      <h2>Home page stats strip</h2>
+      <div class="grid-4">
+        {s.stats.map((st, i) => (
+          <div class="stack" style="gap:8px;">
+            <label class="field"><span>Value {i + 1}</span><input type="text" name={`stats.${i}.value`} value={st.value} maxlength="40" /></label>
+            <label class="field"><span>Label {i + 1}</span><input type="text" name={`stats.${i}.label`} value={st.label} maxlength="80" /></label>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="admin-group" id="testimonials">
+      <h2>Testimonials</h2>
+      <p class="group-help">Bracketed placeholders like [NAME] show until you replace them. Photos go in the image slots below.</p>
+      {s.testimonials.map((t, i) => (
+        <div class="testimonial-edit">
+          <label class="field"><span>Quote {i + 1}</span><textarea name={`testimonials.${i}.quote`} rows="2" maxlength="600">{t.quote}</textarea></label>
+          <div class="grid-3">
+            <label class="field"><span>Name</span><input type="text" name={`testimonials.${i}.name`} value={t.name} maxlength="100" /></label>
+            <label class="field"><span>Title</span><input type="text" name={`testimonials.${i}.title`} value={t.title} maxlength="100" /></label>
+            <label class="field"><span>Company / context</span><input type="text" name={`testimonials.${i}.company`} value={t.company} maxlength="160" /></label>
+          </div>
+        </div>
+      ))}
+    </section>
+
+    <section class="admin-group" id="images">
+      <h2>Images</h2>
+      <p class="group-help">Upload a file (JPEG, PNG, WebP, GIF, AVIF or SVG, up to 2 MB) or paste a URL. Empty slots fall back to the hat artwork.</p>
+      {IMAGE_SLOTS.map((slot) => {
+        const img = s.images[slot];
+        return (
+          <div class="image-slot">
+            <div class="preview">{img.src ? <img src={img.src} alt="" /> : <Icon name="image" size={28} />}</div>
+            <div class="fields">
+              <b>{slotMeta[slot]}</b>
+              <div class="grid-2">
+                <label class="field"><span>Image URL</span><input type="text" name={`images.${slot}.src`} value={img.src} placeholder="https://… or leave empty" /></label>
+                <label class="field"><span>Alt text (what the picture shows)</span><input type="text" name={`images.${slot}.alt`} value={img.alt} maxlength="200" /></label>
+              </div>
+              <div class="row">
+                <label class="field" style="flex:1;"><span>Upload a file</span><input type="file" name={`images.${slot}.file`} accept="image/*" /></label>
+                {img.src && <label class="chip"><input type="checkbox" name={`images.${slot}.remove`} value="1" /> Remove this image</label>}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </section>
+
+    <section class="admin-group" id="pricing">
+      <h2>Prices</h2>
+      <p class="group-help">Monthly prices in US dollars. They appear on the home, Plans, Internet, Managed IT and RanchHand pages.</p>
+      <h3>Business internet</h3>
+      <div class="price-grid">
+        <label class="field"><span>Basic (25 Mbps)</span><input type="number" min="0" step="1" name="pricing.internet.basic" value={s.pricing.internet.basic} /></label>
+        <label class="field"><span>Standard (100 Mbps)</span><input type="number" min="0" step="1" name="pricing.internet.standard" value={s.pricing.internet.standard} /></label>
+        <label class="field"><span>Business (250+ Mbps)</span><input type="number" min="0" step="1" name="pricing.internet.business" value={s.pricing.internet.business} /></label>
+      </div>
+      <h3>Managed IT &amp; LAN</h3>
+      <div class="price-grid">
+        <label class="field"><span>POS Managed</span><input type="number" min="0" step="1" name="pricing.managed.pos" value={s.pricing.managed.pos} /></label>
+        <label class="field"><span>Complete</span><input type="number" min="0" step="1" name="pricing.managed.complete" value={s.pricing.managed.complete} /></label>
+        <label class="field"><span>MSP Basic</span><input type="number" min="0" step="1" name="pricing.managed.mspBasic" value={s.pricing.managed.mspBasic} /></label>
+        <label class="field"><span>MSP Advanced</span><input type="number" min="0" step="1" name="pricing.managed.mspAdvanced" value={s.pricing.managed.mspAdvanced} /></label>
+      </div>
+      <h3>RanchHand</h3>
+      <div class="price-grid">
+        <label class="field"><span>Monthly price</span><input type="number" min="0" step="1" name="pricing.ranchhand" value={s.pricing.ranchhand} /></label>
+        <label class="field"><span>Hardware deposit (month-to-month option)</span><input type="number" min="0" step="1" name="pricing.ranchhandDeposit" value={s.pricing.ranchhandDeposit} /></label>
+      </div>
+    </section>
+
+    <div class="admin-bar">
+      <span>Changes apply to the live site within 30 seconds.</span>
+      <div class="row">
+        <a class="btn btn-ghost btn-sm" href="/" target="_blank" rel="noopener" style="color:var(--cream);">View site</a>
+        <button class="btn btn-primary" type="submit">Save settings</button>
+      </div>
+    </div>
+  </form>
+</Base>
